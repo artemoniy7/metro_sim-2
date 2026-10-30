@@ -5,6 +5,16 @@
   "status": "provisional_gameplay_layout",
   "notes": "Условная игровая схема; геометрия не является точной копией реального депо.",
   "yard_tracks": 3,
+  "track_layout": {
+    "type": "parallel_same_level",
+    "tracks": [
+      {"id": "yard_1", "label": "Путь 1", "purpose": "отстой"},
+      {"id": "yard_2", "label": "Путь 2", "purpose": "отстой"},
+      {"id": "yard_3", "label": "Путь 3", "purpose": "осмотр"}
+    ],
+    "connection": "общая горловина со стрелочными переводами",
+    "visual_depth_levels": 1
+  },
   "shunting_speed_limit_kmh": 15,
   "lead_length_m": 720,
   "connection_station": "Владыкино",

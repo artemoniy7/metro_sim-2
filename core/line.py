@@ -130,7 +130,7 @@ class Line:
                         if signal.kind == "station_entry" and signal.position >= front_point:
                             signal.set_aspect("yellow")
 
-    def block_indication(self, train_position):
+    def block_indication(self, train_position, train=None):
         """Return an ALS-ARS code using the clear distance to the rear of trains ahead.
 
         A train occupies the block until its rear clears it. Therefore the
@@ -143,8 +143,17 @@ class Line:
         # behind them. Position is the front reference; subtract the full
         # consist length to get the leading train's rear.
         clear_distances = []
+        own_tracks = (set(getattr(train, "occupied_track_indices", {getattr(train, "track_index", 1)}))
+                      if train is not None else None)
         for other in self.traffic_trains:
             if not hasattr(other, "position"):
+                continue
+            other_tracks = set(getattr(
+                other, "occupied_track_indices", {getattr(other, "track_index", 1)}
+            ))
+            # Parallel tracks have independent blocks; a train in a crossover
+            # occupies both connected tracks until its tail clears the switch.
+            if own_tracks is not None and not own_tracks.intersection(other_tracks):
                 continue
             other_position = float(other.position)
             if other_position <= float(train_position) + 1.0:

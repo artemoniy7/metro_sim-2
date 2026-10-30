@@ -9,8 +9,8 @@ class AlsArs:
         self.indication_kmh = default_limit_kmh
         self.free_blocks_ahead = 0
 
-    def speed_limit(self, line, position, train_max_speed):
-        indication, free_blocks = line.block_indication(position)
+    def speed_limit(self, line, position, train_max_speed, train=None):
+        indication, free_blocks = line.block_indication(position, train)
         self.indication_kmh = float(indication)
         self.free_blocks_ahead = int(free_blocks)
         limit = min(self.default_limit, train_max_speed, indication / 3.6)

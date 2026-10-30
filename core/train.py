@@ -29,6 +29,10 @@ class Train:
         self.car_length_m = float(data.get("car_length_m", 19.0))
         self.position = 0.0
         self.speed = 0.0
+        # Track 1 is the original/main path; adjacent tracks are reached only
+        # through a reserved crossover in TrackNetwork.
+        self.track_index = 1
+        self.track_change = None
         self.emergency_brake_active = False
         self.manual_emergency_brake_active = False
         self.overspeed_emergency_active = False
@@ -57,6 +61,13 @@ class Train:
                 + max(0, len(self.wagons) - 2) * self.car_length_m)
 
     @property
+    def occupied_track_indices(self):
+        """Tracks physically occupied while the consist is crossing a switch."""
+        if self.track_change:
+            return {self.track_change["from"], self.track_change["to"]}
+        return {self.track_index}
+
+    @property
     def controller_label(self):
         if self.controller_notch < 0:
             return f"T{abs(self.controller_notch)}"
@@ -68,7 +79,7 @@ class Train:
         if dt <= 0:
             return
         dt = min(dt, 0.1)
-        limit = self.als.speed_limit(line, self.position, self.max_speed)
+        limit = self.als.speed_limit(line, self.position, self.max_speed, self)
         self.current_speed_limit_mps = limit
         limit_kmh = limit * 3.6
         speed_kmh = abs(self.speed) * 3.6

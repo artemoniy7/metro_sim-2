@@ -5,6 +5,7 @@ from core.train import Train
 from core.bot import BotTrain
 from core.camera import Camera
 from core.line import Line
+from core.track_network import TrackNetwork
 from core.station_simulation import StationSimulation
 from systems.loader import load_json
 from systems.renderer import Renderer
@@ -22,6 +23,8 @@ class Game:
         line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 9)}")
         # Start directly on the selected line, at the selected station.
         self.line = Line(self.line_data)
+        track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
+        self.track_network = TrackNetwork(self.line, track_data)
         self.renderer.configure_line_station_sprites(line_id)
         configure_station_joints = getattr(self.audio, "configure_station_joint_sounds", None)
         if callable(configure_station_joints):
@@ -86,6 +89,11 @@ class Game:
             toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)
             if callable(toggle_announcer):
                 toggle_announcer(self.train, self.line)
+        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_q, pygame.K_e):
+            direction = -1 if event.key == pygame.K_q else 1
+            self.track_network.request_lane_change(
+                self.train, direction, [self.train] + [bot.train for bot in self.bot_trains]
+            )
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)
         elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -117,6 +125,7 @@ class Game:
         # updates this frame. This keeps following trains from driving through.
         self.line.traffic_trains = [self.train] + [bot.train for bot in self.bot_trains]
         self.train.update(dt, self.line)
+        self.track_network.update_train(self.train)
         if self.train.position >= self.end_position:
             self.train.position = self.end_position
             self.train.speed = 0.0
@@ -124,6 +133,7 @@ class Game:
         for bot in list(self.bot_trains):
             bot.update(dt, self.line, self.audio,
                        seconds_to_dispatch=self.bot_dispatch_interval - self.bot_dispatch_timer)
+            self.track_network.update_train(bot.train)
             if (bot.state != "dwelling"
                     and bot.train.position >= self.line.path.total_length - 0.5):
                 # Remove the train from the terminus and put it at the back of
@@ -174,6 +184,7 @@ class Game:
             door_closing=getattr(self.audio, "door_ring_active", False),
             other_trains=[bot.train for bot in self.bot_trains],
             station_simulation=self.station_simulation,
+            track_network=self.track_network,
         )
         if not self.doors_open and self.renderer.door_open_amount <= 0.0:
             stop_door_ring = getattr(self.audio, "stop_door_ring", None)

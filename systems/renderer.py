@@ -341,9 +341,8 @@ class Renderer:
                                  (shed_x, ground_y - 125, shed_w, 125), 3)
                 pygame.draw.rect(surface, (43, 53, 61),
                                  (shed_x + 12, ground_y - 83, shed_w - 24, 83))
-        # Secondary tracks are drawn first. The tunnel/station shell then
-        # occludes the tracks that pass behind it; the main track is drawn last.
-        self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
+        # Parallel-track geometry is drawn after the foreground ground fill;
+        # otherwise the ground polygon hides the lower track completely.
 
         tunnel_height = max(1, round(5.5 * scale))
         # Extend the foreground tunnel shell far enough to cover the deepest
@@ -438,6 +437,10 @@ class Renderer:
             ex = min(width, sx + 4)
             y1, y2 = rail_y_at(sx), rail_y_at(min(width - 1, ex))
             pygame.draw.polygon(surface, (48, 51, 58), [(sx, y1 + 8), (ex, y2 + 8), (ex, height), (sx, height)])
+
+        # Draw adjacent tracks above the ground fill but before the main rails.
+        # Their trains use the same lane offset, keeping wheels on the visible rails.
+        self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 
         sleeper_spacing = 2.5
         sleeper = int(camera_x / sleeper_spacing) * sleeper_spacing

@@ -10,7 +10,7 @@
     {
       "id": "left",
       "label": "Встречный путь",
-      "offset_m": -3.43,
+      "offset_m": 3.43,
       "rail_top": [
         145,
         151,
@@ -47,7 +47,7 @@
     {
       "id": "right",
       "label": "Путь III (резервный)",
-      "offset_m": 3.43,
+      "offset_m": -3.43,
       "rail_top": [
         145,
         151,

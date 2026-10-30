@@ -193,7 +193,7 @@ class Renderer:
         return float(offset_m) * scale
 
     def _draw_parallel_tracks(self, surface, line, camera_x, scale, rail_y_at, network):
-        """Draw parallel paths in one orthographic plane, never as stacked levels."""
+        """Draw parallel paths with world-space spacing, behind the tunnel shell."""
         if network is None:
             return
         width = surface.get_width()
@@ -557,7 +557,7 @@ class Renderer:
                     )
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
-                    )
+                    ) * scale
                     pygame.draw.rect(surface, (205, 210, 215) if wagon.is_loco else (185, 190, 196), (round(vehicle_x), round(center_y - 48 + 4), vehicle_width, 48))
             vehicle_x += vehicle_width
 

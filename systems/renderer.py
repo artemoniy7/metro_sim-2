@@ -205,7 +205,7 @@ class Renderer:
                     px, py = previous
                     pygame.draw.polygon(surface, ballast, [
                         (px, py + 8), (sx, sy + 8),
-                        (sx, surface.get_height()), (px, surface.get_height())
+                        (sx, sy + 24), (px, py + 24)
                     ])
                 previous = (sx, sy)
             sleeper = int(first_world / spacing_m) * spacing_m

@@ -62,7 +62,8 @@ class Game:
         # One regular opposing service is enough to make the second track
         # visibly active while keeping the scene readable.
         if line_id == "line_9":
-            self._dispatch_opposing_train()
+            for position in (3500.0, 18000.0, 33000.0):
+                self._dispatch_opposing_train(position)
 
     def _dispatch_bot(self):
         train_data = load_json(DATA_DIR / "trains" / "81-760.json", default={})
@@ -80,11 +81,11 @@ class Game:
         bot.train.display_name = f"Состав {self.bot_number}"
         self.bot_trains.append(bot)
 
-    def _dispatch_opposing_train(self):
+    def _dispatch_opposing_train(self, start_position):
         train_data = load_json(DATA_DIR / "trains" / "81-760.json", default={})
         opposing = OpposingBot(
             train_data,
-            start_position=max(0.0, self.line.path.total_length - 1800.0),
+            start_position=min(float(start_position), self.line.path.total_length - 1800.0),
         )
         opposing.train.display_name = "Встречный состав"
         self.opposing_trains.append(opposing)

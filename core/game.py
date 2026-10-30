@@ -3,6 +3,7 @@ import pygame
 from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR
 from core.train import Train
 from core.bot import BotTrain
+from core.opposing_bot import OpposingBot
 from core.camera import Camera
 from core.line import Line
 from core.track_network import TrackNetwork
@@ -48,6 +49,7 @@ class Game:
         # The player's initial position is reserved; AI trains enter every
         # two minutes and are recycled to the line start after the terminus.
         self.bot_trains = []
+        self.opposing_trains = []
         self.bot_dispatch_interval = 120.0
         self.bots_enabled = self.train.position <= 0.01
         self.bot_dispatch_timer = 0.0
@@ -57,6 +59,11 @@ class Game:
         # AI traffic is enabled only when starting from the line origin.
         if self.train.position <= 0.01:
             self._dispatch_bot()
+        # A few opposing services make the second track active at several
+        # points along the route without overcrowding the view.
+        if line_id == "line_9":
+            for position in (3500.0, 18000.0, 33000.0):
+                self._dispatch_opposing_train(position)
 
     def _dispatch_bot(self):
         train_data = load_json(DATA_DIR / "trains" / "81-760.json", default={})
@@ -73,6 +80,15 @@ class Game:
         bot = BotTrain(train_data, start_position=start_position)
         bot.train.display_name = f"Состав {self.bot_number}"
         self.bot_trains.append(bot)
+
+    def _dispatch_opposing_train(self, start_position):
+        train_data = load_json(DATA_DIR / "trains" / "81-760.json", default={})
+        opposing = OpposingBot(
+            train_data,
+            start_position=min(float(start_position), self.line.path.total_length - 1800.0),
+        )
+        opposing.train.display_name = "Встречный состав"
+        self.opposing_trains.append(opposing)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -92,7 +108,9 @@ class Game:
         elif event.type == pygame.KEYDOWN and event.key in (pygame.K_q, pygame.K_e):
             direction = -1 if event.key == pygame.K_q else 1
             self.track_network.request_lane_change(
-                self.train, direction, [self.train] + [bot.train for bot in self.bot_trains]
+                self.train, direction, ([self.train]
+                                        + [bot.train for bot in self.bot_trains]
+                                        + [bot.train for bot in self.opposing_trains])
             )
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)
@@ -130,6 +148,18 @@ class Game:
             self.train.position = self.end_position
             self.train.speed = 0.0
             self.train.controller_notch = 0
+        for opposing in list(self.opposing_trains):
+            opposing.update(dt, self.line)
+            if opposing.train.position <= 0.5:
+                # Turn the service around at Altufyevo for continuous testing.
+                opposing.train.position = max(0.0, self.line.path.total_length - 1800.0)
+                opposing.train.speed = 0.0
+                opposing.train.acceleration_state = 0.0
+                opposing.train.controller_notch = 0
+                opposing.state = "running"
+                opposing.target_station = None
+                opposing.dwell_timer = 0.0
+
         for bot in list(self.bot_trains):
             bot.update(dt, self.line, self.audio,
                        seconds_to_dispatch=self.bot_dispatch_interval - self.bot_dispatch_timer)
@@ -182,7 +212,8 @@ class Game:
             surface, self.line, self.train, self.camera, self.elapsed,
             doors_open=self.doors_open,
             door_closing=getattr(self.audio, "door_ring_active", False),
-            other_trains=[bot.train for bot in self.bot_trains],
+            other_trains=([bot.train for bot in self.bot_trains]
+                          + [bot.train for bot in self.opposing_trains]),
             station_simulation=self.station_simulation,
             track_network=self.track_network,
         )

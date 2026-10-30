@@ -29,6 +29,8 @@ class Train:
         self.car_length_m = float(data.get("car_length_m", 19.0))
         self.position = 0.0
         self.speed = 0.0
+        # +1 follows the line towards the terminus; -1 runs against it.
+        self.direction = 1
         # Track 1 is the original/main path; adjacent tracks are reached only
         # through a reserved crossover in TrackNetwork.
         self.track_index = 1
@@ -79,7 +81,8 @@ class Train:
         if dt <= 0:
             return
         dt = min(dt, 0.1)
-        limit = self.als.speed_limit(line, self.position, self.max_speed, self)
+        limit = (self.max_speed if getattr(self, "is_opposing_bot", False)
+                 else self.als.speed_limit(line, self.position, self.max_speed, self))
         self.current_speed_limit_mps = limit
         limit_kmh = limit * 3.6
         speed_kmh = abs(self.speed) * 3.6
@@ -111,7 +114,7 @@ class Train:
             self.manual_emergency_brake_active
             or (self.overspeed_emergency_active and not is_bot)
         )
-        grade_acceleration = line.path.grade_acceleration(self.position)
+        grade_acceleration = line.path.grade_acceleration(self.position) * self.direction
         resistance = self.rolling_resistance + self.speed_resistance * self.speed
         # Positive grade acceleration means gravity helps the train move forward.
         natural_acceleration = grade_acceleration - resistance if self.speed > 0 else grade_acceleration
@@ -184,7 +187,11 @@ class Train:
                     0.0, min(permitted_speed, self.speed + self.acceleration_state * dt)
                 )
 
-        self.position = min(max(0.0, line.path.total_length), self.position + self.speed * dt)
-        if self.position >= line.path.total_length:
+        self.position = min(line.path.total_length, max(
+            0.0, self.position + self.direction * self.speed * dt
+        ))
+        reached_end = (self.position >= line.path.total_length if self.direction >= 0
+                       else self.position <= 0.0)
+        if reached_end:
             self.speed = 0.0
             self.acceleration_state = 0.0

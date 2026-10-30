@@ -271,6 +271,54 @@ class Renderer:
         # the player's own train or changing its appearance during a crossover.
         sprite.fill((145, 150, 160, 255), special_flags=pygame.BLEND_RGBA_MULT)
 
+    def _draw_signal(self, surface, signal, x, track_y, tunnel_height, scale, alpha=255):
+        """Draw a zoom-aware signal centered vertically inside its tunnel."""
+        zoom = max(0.35, scale / 28.0)
+        head_width = max(8, round(18 * zoom))
+        head_height = max(18, round(40 * zoom))
+        lamp_radius = max(2, round(5 * zoom))
+        font = pygame.font.Font(None, max(12, round(21 * zoom)))
+        label = font.render(signal.name, True, (205, 210, 218)) if signal.operational else None
+        margin_x = max(5, round(12 * zoom))
+        margin_y = max(5, font.get_height() + round(5 * zoom))
+        label_width = label.get_width() if label is not None else 0
+        layer_width = margin_x * 2 + head_width + (label_width + round(8 * zoom) if label else 0)
+        layer_height = margin_y * 2 + head_height
+        layer = pygame.Surface((max(1, layer_width), max(1, layer_height)), pygame.SRCALPHA)
+        head_x = margin_x
+        head_y = margin_y
+        center_x = head_x + head_width // 2
+        pole_color = (88, 91, 98) if signal.operational else (65, 67, 72)
+        bracket_y = head_y + head_height // 2
+        pygame.draw.line(
+            layer, (*pole_color, 255),
+            (max(0, head_x - round(7 * zoom)), bracket_y),
+            (head_x, bracket_y), max(1, round(3 * zoom))
+        )
+        body = pygame.Rect(head_x, head_y, head_width, head_height)
+        pygame.draw.rect(layer, (20, 22, 26, 255), body, border_radius=max(1, round(3 * zoom)))
+        pygame.draw.rect(layer, (*pole_color, 255), body, max(1, round(zoom)), border_radius=max(1, round(3 * zoom)))
+
+        lamp_aspects = ("red", "green") if signal.lamp_count == 2 else ("red", "yellow", "green")
+        for lamp_index, aspect in enumerate(lamp_aspects):
+            lamp_y = head_y + round((lamp_index + 0.5) * head_height / len(lamp_aspects))
+            if signal.operational and signal.aspect == aspect:
+                color = signal.ASPECTS[aspect]
+                pygame.draw.circle(layer, (*color, 255), (center_x, lamp_y), lamp_radius)
+                pygame.draw.circle(layer, (255, 245, 225, 255), (
+                    center_x - max(1, lamp_radius // 3), lamp_y - max(1, lamp_radius // 3)
+                ), max(1, round(2 * zoom)))
+            else:
+                pygame.draw.circle(layer, (45, 47, 51, 255), (center_x, lamp_y), lamp_radius)
+
+        if label is not None:
+            layer.blit(label, (head_x + head_width + round(4 * zoom), head_y - font.get_height() - round(2 * zoom)))
+
+        if alpha < 255:
+            layer.set_alpha(max(0, min(255, int(alpha))))
+        top = round(track_y - tunnel_height / 2 - head_height / 2 - margin_y)
+        surface.blit(layer, (round(x - center_x), top))
+
     def draw_scene(self, surface, line, train, camera, elapsed, doors_open=False, door_closing=False, other_trains=None, station_simulation=None, depot_mode=False, depot_route_set=False, track_network=None):
         width, height = surface.get_size()
         if self.last_render_time is None:
@@ -466,63 +514,12 @@ class Renderer:
                     dlabel = self.small_font.render(f"{distance:.0f} m", True, (170, 190, 205))
                     surface.blit(dlabel, (x - dlabel.get_width() // 2, sy - 25))
 
+        # Main-line signals scale with world zoom and sit at tunnel mid-height.
         for signal in line.signals:
             x = int((line.path.total_length - signal.position - camera_x) * scale)
-            if -40 < x < width + 40:
+            if -80 < x < width + 80:
                 sy = rail_y_at(max(0, min(width - 1, x)))
-                pole_color = (88, 91, 98) if signal.operational else (65, 67, 72)
-
-                # Use simple geometric signals as the primary renderer.
-                # Their on-screen size does not change with camera zoom.
-                head_width = 18
-                head_height = 40
-                # Mount the signal on the tunnel wall, not beside the rails.
-                # Keep the signal head a fixed pixel size at every zoom level.
-                wall_y = sy - tunnel_height + 8
-                head_y = wall_y + 5
-                bracket_y = head_y + head_height // 2
-                pygame.draw.line(
-                    surface, pole_color,
-                    (x - head_width // 2 - 7, bracket_y),
-                    (x - head_width // 2, bracket_y), 3
-                )
-
-                body = pygame.Rect(
-                    x - head_width // 2, head_y, head_width, head_height
-                )
-                pygame.draw.rect(surface, (20, 22, 26), body, border_radius=3)
-                pygame.draw.rect(surface, pole_color, body, 1, border_radius=3)
-
-                if signal.lamp_count == 2:
-                    lamp_aspects = ("red", "green")
-                else:
-                    lamp_aspects = ("red", "yellow", "green")
-
-                lamp_radius = 5
-                for lamp_index, aspect in enumerate(lamp_aspects):
-                    lamp_y = head_y + round(
-                        (lamp_index + 0.5) * head_height / len(lamp_aspects)
-                    )
-                    if signal.operational and signal.aspect == aspect:
-                        color = signal.ASPECTS[aspect]
-                        # Bright center makes the active lamp clearly readable.
-                        pygame.draw.circle(surface, color, (x, lamp_y), lamp_radius)
-                        pygame.draw.circle(
-                            surface, (255, 245, 225),
-                            (x - 1, lamp_y - 1), 2
-                        )
-                    else:
-                        pygame.draw.circle(
-                            surface, (45, 47, 51), (x, lamp_y), lamp_radius
-                        )
-
-                if signal.operational:
-                    label = self.small_font.render(
-                        signal.name, True, (205, 210, 218)
-                    )
-                    surface.blit(
-                        label, (x + head_width // 2 + 4, head_y - 14)
-                    )
+                self._draw_signal(surface, signal, x, sy, tunnel_height, scale)
 
         loco_x = (line.path.total_length - train.position - train.loco_length_m - camera_x) * scale
         loco_width = max(1, round(train.loco_length_m * scale))
@@ -688,6 +685,30 @@ class Renderer:
                         surface.blit(
                             opposing_tunnel_tile.subsurface((0, 0, extra_width, opposing_tunnel_height)),
                             (sx + slice_width, round(track_y - opposing_tunnel_height)),
+                        )
+
+        # Opposing-path signals use the same block aspects, but are dimmed
+        # whenever the player is on the main path.
+        if track_network is not None:
+            opposing_lane_index = next((
+                index for index in range(len(track_network.lanes))
+                if index != track_network.main_lane
+            ), None)
+            if opposing_lane_index is not None:
+                occupied_tracks = set(getattr(
+                    train, "occupied_track_indices",
+                    {getattr(train, "track_index", track_network.main_lane)}
+                ))
+                signal_alpha = 255 if opposing_lane_index in occupied_tracks else 112
+                opposing_offset = self._lane_offset_pixels(
+                    track_network.lanes[opposing_lane_index], scale
+                )
+                for signal in line.signals:
+                    x = int((line.path.total_length - signal.position - camera_x) * scale)
+                    if -80 < x < width + 80:
+                        sy = rail_y_at(max(0, min(width - 1, x))) + opposing_offset
+                        self._draw_signal(
+                            surface, signal, x, sy, tunnel_height, scale, signal_alpha
                         )
 
         speed_limit_kmh = train.als.speed_limit(line, train.position, train.max_speed, train)

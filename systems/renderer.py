@@ -403,6 +403,16 @@ class Renderer:
         # The main tunnel belongs only to the main track. The opposing track
         # gets its own foreground tunnel overlay after the trains are drawn.
         tunnel_draw_height = tunnel_height
+        opposing_station_offset = 0
+        if track_network is not None:
+            opposing_lane_index = next((
+                index for index in range(len(track_network.lanes))
+                if index != track_network.main_lane
+            ), None)
+            if opposing_lane_index is not None:
+                opposing_station_offset = self._lane_offset_pixels(
+                    track_network.lanes[opposing_lane_index], scale
+                )
         if self.tunnel_image is not None:
             tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
             tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
@@ -449,16 +459,34 @@ class Renderer:
                         src_x = min(station_width - 1, max(0, tile_x))
                         slice_width = min(strip_width, station_width - src_x)
                         if slice_width > 0:
+                            station_slice = station_tile.subsurface(
+                                (src_x, 0, slice_width, station_height)
+                            )
                             surface.blit(
-                                station_tile.subsurface((src_x, 0, slice_width, station_height)),
+                                station_slice,
                                 (sx, track_y - station_height + station_bottom_extra)
                             )
+                            if opposing_station_offset:
+                                surface.blit(
+                                    station_slice,
+                                    (sx, track_y + opposing_station_offset
+                                     - station_height + station_bottom_extra)
+                                )
                         if slice_width < strip_width:
                             extra_width = min(strip_width - slice_width, station_width)
+                            station_slice = station_tile.subsurface(
+                                (0, 0, extra_width, station_height)
+                            )
                             surface.blit(
-                                station_tile.subsurface((0, 0, extra_width, station_height)),
+                                station_slice,
                                 (sx + slice_width, track_y - station_height + station_bottom_extra)
                             )
+                            if opposing_station_offset:
+                                surface.blit(
+                                    station_slice,
+                                    (sx + slice_width, track_y + opposing_station_offset
+                                     - station_height + station_bottom_extra)
+                                )
                     else:
                         pygame.draw.rect(
                             surface, (142, 24, 34),
@@ -507,8 +535,24 @@ class Renderer:
                 sy = rail_y_at(max(0, min(width - 1, x)))
                 half_platform = int(float(station.get("length_m", 155)) * scale / 2)
                 pygame.draw.line(surface, (205, 55, 65), (x - half_platform, sy - 8), (x + half_platform, sy - 8), 5)
+                if opposing_station_offset:
+                    opposing_sy = sy + opposing_station_offset
+                    pygame.draw.line(
+                        surface, (170, 75, 82),
+                        (x - half_platform, opposing_sy - 8),
+                        (x + half_platform, opposing_sy - 8), 5
+                    )
                 label = self.small_font.render(station.get("name", "Station"), True, (230, 234, 240))
                 surface.blit(label, (x - label.get_width() // 2, sy - 43))
+                if opposing_station_offset:
+                    opposing_label = self.small_font.render(
+                        station.get("name", "Station"), True, (175, 185, 198)
+                    )
+                    surface.blit(
+                        opposing_label,
+                        (x - opposing_label.get_width() // 2,
+                         sy + opposing_station_offset - 43)
+                    )
                 distance = float(station.get("position", 0)) - train.position
                 if distance > 0:
                     dlabel = self.small_font.render(f"{distance:.0f} m", True, (170, 190, 205))

@@ -17,6 +17,12 @@ class OpposingBot:
         self.dwell_timer = 0.0
 
     def _next_station(self, line):
+        # Keep the selected platform as the target until the train has
+        # actually stopped there. Without this, the station drops out of the
+        # candidate list inside the final 3 m and the train skips its stop.
+        if self.target_station is not None:
+            return self.target_station
+
         candidates = [
             station for station in line.stations
             if float(station.get("position", 0)) < self.train.position - 3.0

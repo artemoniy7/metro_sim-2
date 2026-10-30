@@ -89,7 +89,7 @@ class TrackNetwork:
             return False
         available = [
             switch for switch in self.switches
-            if -1.0 <= switch["position"] - train.position <= self.switch_window
+            if self.switch_length / 2 <= switch["position"] - train.position <= self.switch_window
         ]
         if not available:
             self.last_message = "Рядом нет стрелочного перевода"

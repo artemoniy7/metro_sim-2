@@ -1,6 +1,6 @@
 {
   "layout": "orthographic_parallel_tracks",
-  "description": "Three parallel paths on one visual level; offsets are screen-space spacing only.",
+  "description": "Three parallel tracks with spacing measured in metres and scaled by the camera.",
   "main_lane": 1,
   "first_switch_m": 900,
   "switch_spacing_m": 1500,
@@ -8,15 +8,13 @@
   "switch_window_m": 120,
   "lanes": [
     {
-      "id": "left", "label": "Путь I", "offset_px": -96,
-      "tint": [225, 235, 255],
+      "id": "left", "label": "Путь I", "offset_m": -3.43,
       "rail_top": [145, 151, 160], "rail_side": [76, 83, 93],
       "sleeper": [88, 83, 76], "ballast": [39, 43, 51]
     },
-    {"id": "main", "label": "Главный путь", "offset_px": 0, "tint": [255, 255, 255]},
+    {"id": "main", "label": "Главный путь", "offset_m": 0.0},
     {
-      "id": "right", "label": "Путь III", "offset_px": 96,
-      "tint": [255, 230, 215],
+      "id": "right", "label": "Путь III", "offset_m": 3.43,
       "rail_top": [145, 151, 160], "rail_side": [76, 83, 93],
       "sleeper": [88, 83, 76], "ballast": [39, 43, 51]
     }

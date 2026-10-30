@@ -16,11 +16,26 @@ class TrackNetwork:
         self.switch_window = max(self.switch_length, float(data.get("switch_window_m", 120.0)))
         spacing = max(300.0, float(data.get("switch_spacing_m", 1500.0)))
         first = max(100.0, float(data.get("first_switch_m", 900.0)))
+        positions = list(self._positions(first, spacing, line.path.total_length))
+        # Add paired crossovers outside selected station platforms. This makes
+        # the route changes visible near stations without putting points under platforms.
+        if data.get("station_switches", False):
+            interval = max(1, int(data.get("station_switch_interval", 4)))
+            approach = max(self.switch_length, float(
+                data.get("switch_offset_from_station_m", 260.0)
+            ))
+            for station_index, station in enumerate(getattr(line, "stations", [])):
+                if station_index % interval != 0:
+                    continue
+                center = float(station.get("position", 0.0))
+                positions.extend((center - approach, center + approach))
+        positions = sorted({
+            round(position, 2) for position in positions
+            if self.switch_length / 2 <= position <= line.path.total_length - self.switch_length / 2
+        })
         self.switches = [
             {"id": f"SW-{index:02d}", "position": position}
-            for index, position in enumerate(
-                self._positions(first, spacing, line.path.total_length), start=1
-            )
+            for index, position in enumerate(positions, start=1)
         ]
         self.last_message = ""
 

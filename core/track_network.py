@@ -102,6 +102,11 @@ class TrackNetwork:
         if target < 0 or target >= len(self.lanes):
             self.last_message = "Соседнего пути нет"
             return False
+        train_direction = int(getattr(train, "direction", 1))
+        lane_direction = int(self.lanes[target].get("direction", train_direction))
+        if lane_direction != train_direction:
+            self.last_message = "Этот путь предназначен для встречного движения"
+            return False
         available = [
             switch for switch in self.switches
             if self.switch_length / 2 <= switch["position"] - train.position <= self.switch_window

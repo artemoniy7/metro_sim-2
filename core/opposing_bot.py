@@ -49,7 +49,7 @@ class OpposingBot:
         stopping_distance = speed * speed / (2.0 * 0.85) + speed * 1.8 + 22.0
         target_speed = min(train.max_speed, 72.0 / 3.6)
 
-        if station is not None and distance <= 3.0 and speed <= 0.8:
+        if station is not None and abs(distance) <= 3.0 and speed <= 0.8:
             train.position = float(station.get("position", train.position))
             train.speed = 0.0
             train.acceleration_state = 0.0
@@ -59,7 +59,12 @@ class OpposingBot:
             self.dwell_timer = float(station.get("dwell_seconds", 20))
             return
 
-        if station is not None and distance <= stopping_distance:
+        if station is not None and distance <= 3.0:
+            train.controller_notch = -3 if speed > 1.0 else -2
+        elif station is not None and speed <= 0.8 and distance > 3.0:
+            # Creep to the platform if the train stopped a little short.
+            train.controller_notch = 1
+        elif station is not None and distance <= stopping_distance:
             train.controller_notch = -3 if speed > 4.0 else -2
         elif speed < target_speed - 0.3:
             train.controller_notch = 4

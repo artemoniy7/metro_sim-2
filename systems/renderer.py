@@ -492,6 +492,12 @@ class Renderer:
                             surface, (142, 24, 34),
                             (sx, track_y - station_height, strip_width, station_height + 20)
                         )
+                        if opposing_station_offset:
+                            pygame.draw.rect(
+                                surface, (142, 24, 34),
+                                (sx, track_y + opposing_station_offset - station_height,
+                                 strip_width, station_height + 20)
+                            )
                 else:
                     src_x = int((world_x * scale) % tunnel_width)
                     src_x = min(tunnel_width - 1, max(0, src_x))

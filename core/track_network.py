@@ -9,9 +9,9 @@ class TrackNetwork:
         self.line = line
         self.main_lane = int(data.get("main_lane", 1))
         self.lanes = list(data.get("lanes", [
-            {"id": "left", "label": "Путь I", "offset_px": -96, "tint": [225, 235, 255]},
-            {"id": "main", "label": "Главный путь", "offset_px": 0, "tint": [255, 255, 255]},
-            {"id": "right", "label": "Путь III", "offset_px": 96, "tint": [255, 230, 215]},
+            {"id": "left", "label": "Путь I", "offset_m": -3.43},
+            {"id": "main", "label": "Главный путь", "offset_m": 0.0},
+            {"id": "right", "label": "Путь III", "offset_m": 3.43},
         ]))
         if not self.lanes:
             self.lanes = [{"id": "main", "label": "Главный путь", "offset_px": 0,
@@ -43,7 +43,12 @@ class TrackNetwork:
 
     def lane_offset_for_index(self, index):
         index = max(0, min(len(self.lanes) - 1, int(index)))
-        return float(self.lanes[index].get("offset_px", 0.0))
+        lane = self.lanes[index]
+        # Store physical spacing in metres. Convert legacy pixel spacing using
+        # the previous default camera scale to keep existing layouts compatible.
+        if "offset_m" in lane:
+            return float(lane["offset_m"])
+        return float(lane.get("offset_px", 0.0)) / 28.0
 
     def lane_offset(self, train, position=None):
         change = getattr(train, "track_change", None)

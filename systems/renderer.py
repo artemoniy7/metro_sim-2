@@ -43,6 +43,7 @@ class Renderer:
         self._station_tile_cache = {}
         self.last_render_time = None
         self._tunnel_tile_cache = {}
+        self._opposing_tunnel_cache = {}
 
     def configure_line_station_sprites(self, line_id):
         """Load station textures only from the selected line's asset folder."""
@@ -351,13 +352,9 @@ class Renderer:
         # inside the enlarged tunnel envelope. The main path is drawn last.
 
         tunnel_height = max(1, round(5.5 * scale))
-        # Extend the foreground tunnel shell far enough to cover the deepest
-        # parallel track as well. Main rails are painted afterwards, in front.
-        deepest_lane_offset = max(
-            (self._lane_offset_pixels(lane, scale) for lane in track_network.lanes),
-            default=0.0,
-        ) if track_network is not None else 0.0
-        tunnel_draw_height = tunnel_height + max(0, round(deepest_lane_offset)) + 24
+        # The main tunnel belongs only to the main track. The opposing track
+        # gets its own foreground tunnel overlay after the trains are drawn.
+        tunnel_draw_height = tunnel_height
         if self.tunnel_image is not None:
             tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
             tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
@@ -629,6 +626,69 @@ class Renderer:
                     True, (175, 205, 235)
                 )
                 surface.blit(bot_label, (round(bot_x), max(220, round(rail_y_at(bot_x) - 68))))
+
+        # Foreground shell for the opposing tunnel. It is deliberately drawn
+        # after both player and AI trains, so the tunnel sits in front of them.
+        # When the player is not occupying this lane it becomes translucent.
+        if track_network is not None and self.tunnel_image is not None:
+            opposing_lane_index = next((
+                index for index in range(len(track_network.lanes))
+                if index != track_network.main_lane
+            ), None)
+            if opposing_lane_index is not None:
+                occupied_tracks = set(getattr(
+                    train, "occupied_track_indices", {getattr(train, "track_index", track_network.main_lane)}
+                ))
+                tunnel_alpha = 255 if opposing_lane_index in occupied_tracks else 112
+                opposing_offset = self._lane_offset_pixels(
+                    track_network.lanes[opposing_lane_index], scale
+                )
+                opposing_tunnel_height = tunnel_height
+                opposing_tunnel_width = max(1, round(
+                    opposing_tunnel_height * self.tunnel_image.get_width()
+                    / self.tunnel_image.get_height()
+                ))
+                overlay_key = (
+                    id(self.tunnel_image), opposing_tunnel_width,
+                    opposing_tunnel_height, tunnel_alpha,
+                )
+                if overlay_key not in self._opposing_tunnel_cache:
+                    overlay_tile = pygame.transform.smoothscale(
+                        self.tunnel_image,
+                        (opposing_tunnel_width, opposing_tunnel_height),
+                    )
+                    overlay_tile.set_alpha(tunnel_alpha)
+                    self._opposing_tunnel_cache = {overlay_key: overlay_tile}
+                opposing_tunnel_tile = self._opposing_tunnel_cache[overlay_key]
+                for sx in range(0, width, 4):
+                    world_x = camera_x + sx / scale
+                    route_position = line.path.total_length - world_x
+                    # Keep station platforms and the surface depot unobstructed.
+                    if depot_length > 0.0 and route_position < depot_length:
+                        continue
+                    if any(
+                        abs(route_position - float(station.get("position", 0)))
+                        <= float(station.get("length_m", 162)) / 2
+                        for station in line.stations
+                    ):
+                        continue
+                    track_y = rail_y_at(sx) + opposing_offset
+                    src_x = int((world_x * scale) % opposing_tunnel_width)
+                    src_x = min(opposing_tunnel_width - 1, max(0, src_x))
+                    slice_width = min(4, width - sx, opposing_tunnel_width - src_x)
+                    if slice_width > 0:
+                        surface.blit(
+                            opposing_tunnel_tile.subsurface((
+                                src_x, 0, slice_width, opposing_tunnel_height
+                            )),
+                            (sx, round(track_y - opposing_tunnel_height)),
+                        )
+                    if slice_width < min(4, width - sx):
+                        extra_width = min(4, width - sx) - slice_width
+                        surface.blit(
+                            opposing_tunnel_tile.subsurface((0, 0, extra_width, opposing_tunnel_height)),
+                            (sx + slice_width, round(track_y - opposing_tunnel_height)),
+                        )
 
         speed_limit_kmh = train.als.speed_limit(line, train.position, train.max_speed, train)
         if depot_mode:

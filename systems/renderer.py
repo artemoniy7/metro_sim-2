@@ -703,7 +703,7 @@ class Renderer:
                 opposing_offset = self._lane_offset_pixels(
                     track_network.lanes[opposing_lane_index], scale
                 )
-                for signal in line.signals:
+                for signal in line.opposing_signals:
                     x = int((line.path.total_length - signal.position - camera_x) * scale)
                     if -80 < x < width + 80:
                         sy = rail_y_at(max(0, min(width - 1, x))) + opposing_offset

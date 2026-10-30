@@ -15,6 +15,7 @@ class Line:
         self.signals = []
         self.traffic_trains = []
         self._create_signals()
+        self.opposing_signals = self._create_opposing_signals()
 
     def _create_signals(self):
         """Passive conventional signals every ~275 m, plus working station signals."""
@@ -63,13 +64,41 @@ class Line:
         ]
         self.signals.sort(key=lambda signal: signal.position)
 
-    def update_signals(self, train, train_speed=None):
+    def _create_opposing_signals(self):
+        """Build an independent, reverse-facing signal set for the opposing track."""
+        opposing = []
+        for signal in self.signals:
+            position = signal.position
+            if signal.kind in ("station_entry", "station_exit"):
+                try:
+                    station_index = int(signal.name[1:-1]) - 1
+                    station = self.stations[station_index]
+                except (ValueError, IndexError):
+                    station = None
+                if station is not None:
+                    center = float(station.get("position", 0))
+                    half_length = float(station.get("length_m", 162)) / 2.0
+                    if signal.kind == "station_entry":
+                        position = min(self.path.total_length, center + half_length + 50.0)
+                    else:
+                        position = max(0.0, center - half_length - 10.0)
+            opposing.append(Signal(
+                position=position, aspect=signal.aspect, name=signal.name,
+                operational=signal.operational, kind=signal.kind,
+                lamp_count=signal.lamp_count,
+            ))
+        opposing.sort(key=lambda signal: signal.position)
+        return opposing
+
+    def update_signals(self, train, train_speed=None, signals=None, direction=1):
         """Update working signals using every physical signal as a block boundary.
 
         Passive signals remain dark visually, but still divide the track into
         short blocks. This prevents a station exit signal from staying red all
         the way to the next station merely because no working signal lies there.
         """
+        signal_set = self.signals if signals is None else signals
+        direction = -1 if direction < 0 else 1
         trains = list(train) if isinstance(train, (list, tuple)) else [train]
         occupied_ranges = []
         for item in trains:
@@ -81,15 +110,15 @@ class Line:
             occupied_ranges.append((front, rear))
 
         operational = sorted(
-            (signal for signal in self.signals if signal.operational),
+            (signal for signal in signal_set if signal.operational),
             key=lambda signal: signal.position,
         )
-        for signal in self.signals:
+        for signal in signal_set:
             if not signal.operational:
                 signal.set_aspect("dark")
 
         physical_positions = sorted(
-            signal.position for signal in self.signals
+            signal.position for signal in signal_set
             if signal.position > 0.0
         )
 
@@ -97,18 +126,26 @@ class Line:
             # The next physical signal (including a dark passive signal)
             # bounds this block, rather than the next station signal.
             block_start = signal.position
-            block_end = next(
-                (position for position in physical_positions
-                 if position > block_start + 0.01),
-                self.path.total_length,
-            )
-
-            # Red while any part of the train occupies the block. Never turn
-            # a signal green merely because the train passed its own pole.
-            occupied = any(
-                front >= block_start and rear < block_end
-                for front, rear in occupied_ranges
-            )
+            if direction > 0:
+                block_end = next(
+                    (position for position in physical_positions
+                     if position > block_start + 0.01),
+                    self.path.total_length,
+                )
+                occupied = any(
+                    front >= block_start and rear < block_end
+                    for front, rear in occupied_ranges
+                )
+            else:
+                block_end = next(
+                    (position for position in reversed(physical_positions)
+                     if position < block_start - 0.01),
+                    0.0,
+                )
+                occupied = any(
+                    rear <= block_start and front > block_end
+                    for front, rear in occupied_ranges
+                )
             if occupied:
                 signal.set_aspect("red")
             else:
@@ -116,19 +153,34 @@ class Line:
 
         # Entry signals show a restrictive approach aspect before the platform.
         # Show an approach aspect for any train nearing a station.
-        for front_point, _ in occupied_ranges:
-            next_station = next((
-                station for station in self.stations
-                if float(station.get("position", 0)) >= front_point
-            ), None)
-            if next_station is not None:
-                center = float(next_station.get("position", 0))
-                half_length = float(next_station.get("length_m", 162)) / 2.0
-                distance_to_platform = center - half_length - front_point
-                if 0.0 <= distance_to_platform <= 50.0:
-                    for signal in operational:
-                        if signal.kind == "station_entry" and signal.position >= front_point:
-                            signal.set_aspect("yellow")
+        for front, rear in occupied_ranges:
+            leading_point = front if direction > 0 else rear
+            if direction > 0:
+                next_station = next((
+                    station for station in self.stations
+                    if float(station.get("position", 0)) >= leading_point
+                ), None)
+                if next_station is not None:
+                    center = float(next_station.get("position", 0))
+                    half_length = float(next_station.get("length_m", 162)) / 2.0
+                    distance_to_platform = center - half_length - leading_point
+                    if 0.0 <= distance_to_platform <= 50.0:
+                        for signal in operational:
+                            if signal.kind == "station_entry" and signal.position >= leading_point:
+                                signal.set_aspect("yellow")
+            else:
+                next_station = next((
+                    station for station in reversed(self.stations)
+                    if float(station.get("position", 0)) <= leading_point
+                ), None)
+                if next_station is not None:
+                    center = float(next_station.get("position", 0))
+                    half_length = float(next_station.get("length_m", 162)) / 2.0
+                    distance_to_platform = leading_point - (center + half_length)
+                    if 0.0 <= distance_to_platform <= 50.0:
+                        for signal in operational:
+                            if signal.kind == "station_entry" and signal.position <= leading_point:
+                                signal.set_aspect("yellow")
 
     def block_indication(self, train_position, train=None):
         """Return an ALS-ARS code using the clear distance to the rear of trains ahead.

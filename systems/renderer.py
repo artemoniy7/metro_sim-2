@@ -346,9 +346,16 @@ class Renderer:
         self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 
         tunnel_height = max(1, round(5.5 * scale))
+        # Extend the foreground tunnel shell far enough to cover the deepest
+        # parallel track as well. Main rails are painted afterwards, in front.
+        deepest_lane_offset = max(
+            (self._lane_offset_pixels(lane, scale) for lane in track_network.lanes),
+            default=0.0,
+        ) if track_network is not None else 0.0
+        tunnel_draw_height = tunnel_height + max(0, round(deepest_lane_offset))
         if self.tunnel_image is not None:
-            tunnel_width = max(1, round(tunnel_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
-            tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_height)
+            tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
+            tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
             if tunnel_key not in self._tunnel_tile_cache:
                 self._tunnel_tile_cache = {tunnel_key: pygame.transform.smoothscale(self.tunnel_image, (tunnel_width, tunnel_height))}
             tunnel_tile = self._tunnel_tile_cache[tunnel_key]
@@ -412,10 +419,10 @@ class Renderer:
                     src_x = min(tunnel_width - 1, max(0, src_x))
                     slice_width = min(strip_width, tunnel_width - src_x)
                     if slice_width > 0:
-                        surface.blit(tunnel_tile.subsurface((src_x, 0, slice_width, tunnel_height)), (sx, track_y - tunnel_height))
+                        surface.blit(tunnel_tile.subsurface((src_x, 0, slice_width, tunnel_draw_height)), (sx, track_y - tunnel_draw_height))
                         if slice_width < strip_width:
                             extra_width = min(strip_width - slice_width, tunnel_width)
-                            surface.blit(tunnel_tile.subsurface((0, 0, extra_width, tunnel_height)), (sx + slice_width, track_y - tunnel_height))
+                            surface.blit(tunnel_tile.subsurface((0, 0, extra_width, tunnel_draw_height)), (sx + slice_width, track_y - tunnel_draw_height))
         else:
             for sx in range(0, width, 4):
                 route_position = line.path.total_length - (camera_x + sx / scale)

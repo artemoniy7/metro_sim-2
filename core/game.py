@@ -59,8 +59,8 @@ class Game:
         # AI traffic is enabled only when starting from the line origin.
         if self.train.position <= 0.01:
             self._dispatch_bot()
-        # One regular opposing service is enough to make the second track
-        # visibly active while keeping the scene readable.
+        # A few opposing services make the second track active at several
+        # points along the route without overcrowding the view.
         if line_id == "line_9":
             for position in (3500.0, 18000.0, 33000.0):
                 self._dispatch_opposing_train(position)
@@ -108,7 +108,9 @@ class Game:
         elif event.type == pygame.KEYDOWN and event.key in (pygame.K_q, pygame.K_e):
             direction = -1 if event.key == pygame.K_q else 1
             self.track_network.request_lane_change(
-                self.train, direction, [self.train] + [bot.train for bot in self.bot_trains]
+                self.train, direction, ([self.train]
+                                        + [bot.train for bot in self.bot_trains]
+                                        + [bot.train for bot in self.opposing_trains])
             )
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)

@@ -357,7 +357,7 @@ class Renderer:
             tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
             tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
             if tunnel_key not in self._tunnel_tile_cache:
-                self._tunnel_tile_cache = {tunnel_key: pygame.transform.smoothscale(self.tunnel_image, (tunnel_width, tunnel_height))}
+                self._tunnel_tile_cache = {tunnel_key: pygame.transform.smoothscale(self.tunnel_image, (tunnel_width, tunnel_draw_height))}
             tunnel_tile = self._tunnel_tile_cache[tunnel_key]
             strip_width = 4
             for sx in range(0, width, strip_width):

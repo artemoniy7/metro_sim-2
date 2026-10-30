@@ -182,7 +182,86 @@ class Renderer:
         return (0.45 * math.sin(world_x / 85.0)
                 + 0.18 * math.sin(world_x / 38.0 + 0.8))
 
-    def draw_scene(self, surface, line, train, camera, elapsed, doors_open=False, door_closing=False, other_trains=None, station_simulation=None, depot_mode=False, depot_route_set=False):
+    def _draw_parallel_tracks(self, surface, line, camera_x, scale, rail_y_at, network):
+        """Draw parallel paths in one orthographic plane, never as stacked levels."""
+        if network is None:
+            return
+        width = surface.get_width()
+        spacing_m = 2.5
+        first_world = camera_x
+        last_world = camera_x + width / scale
+        for lane_index, lane in enumerate(network.lanes):
+            if lane_index == network.main_lane:
+                continue
+            offset = float(lane["offset_px"])
+            rail_top = tuple(lane.get("rail_top", (145, 151, 160)))
+            rail_side = tuple(lane.get("rail_side", (76, 83, 93)))
+            sleeper_color = tuple(lane.get("sleeper", (88, 83, 76)))
+            ballast = tuple(lane.get("ballast", (39, 43, 51)))
+            previous = None
+            for sx in range(0, width, 4):
+                sy = rail_y_at(sx) + offset
+                if previous is not None:
+                    px, py = previous
+                    pygame.draw.polygon(surface, ballast, [
+                        (px, py + 8), (sx, sy + 8),
+                        (sx, sy + 24), (px, py + 24)
+                    ])
+                previous = (sx, sy)
+            sleeper = int(first_world / spacing_m) * spacing_m
+            while sleeper < last_world:
+                sx = round((sleeper - camera_x) * scale)
+                if 0 <= sx < width:
+                    sy = rail_y_at(sx) + offset
+                    pygame.draw.line(surface, sleeper_color, (sx, sy - 1),
+                                     (sx, sy + 14), 3)
+                sleeper += spacing_m
+            for sx in range(0, width, 4):
+                ex = min(width, sx + 4)
+                y1 = rail_y_at(sx) + offset
+                y2 = rail_y_at(min(width - 1, ex)) + offset
+                pygame.draw.line(surface, rail_top, (sx, y1 + 1), (ex, y2 + 1), 4)
+                pygame.draw.line(surface, rail_side, (sx, y1 + 7), (ex, y2 + 7), 2)
+
+        # Smooth connectors between adjacent paths; all remain on one plane.
+        for switch in network.switches:
+            start = max(0.0, switch["position"] - network.switch_length / 2)
+            end = min(line.path.total_length, switch["position"] + network.switch_length / 2)
+            if end <= start:
+                continue
+            for lane_a in range(len(network.lanes) - 1):
+                lane_b = lane_a + 1
+                rail_one, rail_two = [], []
+                for step in range(17):
+                    t = step / 16
+                    eased = t * t * (3.0 - 2.0 * t)
+                    route_position = start + (end - start) * t
+                    sx = round((line.path.total_length - route_position - camera_x) * scale)
+                    if sx < -20 or sx > width + 20:
+                        continue
+                    base_y = rail_y_at(max(0, min(width - 1, sx)))
+                    offset_a = float(network.lanes[lane_a]["offset_px"])
+                    offset_b = float(network.lanes[lane_b]["offset_px"])
+                    y = base_y + offset_a + (offset_b - offset_a) * eased
+                    rail_one.append((sx, round(y + 1)))
+                    rail_two.append((sx, round(y + 7)))
+                if len(rail_one) > 1:
+                    pygame.draw.lines(surface, (156, 162, 170), False, rail_one, 4)
+                    pygame.draw.lines(surface, (83, 90, 99), False, rail_two, 2)
+
+    @staticmethod
+    def _train_track_offset(network, train, wagon_position):
+        return network.lane_offset(train, wagon_position) if network is not None else 0.0
+
+    @staticmethod
+    def _tint_train_sprite(sprite, network, train, wagon_position):
+        if network is None:
+            return
+        tint = network.tint_for_train(train, wagon_position)
+        if tint != (255, 255, 255):
+            sprite.fill((*tint, 255), special_flags=pygame.BLEND_RGBA_MULT)
+
+    def draw_scene(self, surface, line, train, camera, elapsed, doors_open=False, door_closing=False, other_trains=None, station_simulation=None, depot_mode=False, depot_route_set=False, track_network=None):
         width, height = surface.get_size()
         if self.last_render_time is None:
             frame_dt = 1.0 / 60.0
@@ -354,6 +433,8 @@ class Renderer:
             pygame.draw.line(surface, (155, 160, 167), (sx, y1 + 1), (ex, y2 + 1), 4)
             pygame.draw.line(surface, (85, 90, 98), (sx, y1 + 7), (ex, y2 + 7), 2)
 
+        self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
+
         for station in line.stations:
             x = int((line.path.total_length - float(station.get("position", 0)) - camera_x) * scale)
             if -160 < x < width + 160:
@@ -450,11 +531,22 @@ class Renderer:
                         elapsed=elapsed, active=door_closing
                     )
                     center_x = vehicle_x + vehicle_width / 2
-                    center_y = rail_y_at(center_x)
+                    wagon_position = max(
+                        0.0, train.position - max(0.0, (vehicle_x - loco_x) / scale)
+                    )
+                    center_y = rail_y_at(center_x) + self._train_track_offset(
+                        track_network, train, wagon_position
+                    )
+                    self._tint_train_sprite(sprite, track_network, train, wagon_position)
                     surface.blit(sprite, (round(vehicle_x), round(center_y - loco_height + 4)))
                 else:
                     center_x = vehicle_x + vehicle_width / 2
-                    center_y = rail_y_at(center_x)
+                    wagon_position = max(
+                        0.0, train.position - max(0.0, (vehicle_x - loco_x) / scale)
+                    )
+                    center_y = rail_y_at(center_x) + self._train_track_offset(
+                        track_network, train, wagon_position
+                    )
                     pygame.draw.rect(surface, (205, 210, 215) if wagon.is_loco else (185, 190, 196), (round(vehicle_x), round(center_y - 48 + 4), vehicle_width, 48))
             vehicle_x += vehicle_width
 
@@ -472,7 +564,12 @@ class Renderer:
                 if is_rear_cab and vehicle_image is not None:
                     vehicle_image = pygame.transform.flip(vehicle_image, True, False)
                 if bot_vehicle_x + vehicle_width >= -bot_loco_width and bot_vehicle_x <= width + bot_loco_width:
-                    center_y = rail_y_at(bot_vehicle_x + vehicle_width / 2)
+                    bot_wagon_position = max(
+                        0.0, bot_train.position - max(0.0, (bot_vehicle_x - bot_x) / scale)
+                    )
+                    center_y = rail_y_at(bot_vehicle_x + vehicle_width / 2) + self._train_track_offset(
+                        track_network, bot_train, bot_wagon_position
+                    )
                     if vehicle_image is not None:
                         sprite = pygame.transform.smoothscale(
                             vehicle_image, (max(1, vehicle_width), max(1, loco_height))
@@ -486,6 +583,7 @@ class Renderer:
                                 is_loco=wagon.is_loco, is_rear_cab=is_rear_cab
                             )
                             self.door_open_amount = saved_door_amount
+                        self._tint_train_sprite(sprite, track_network, bot_train, bot_wagon_position)
                         surface.blit(sprite, (round(bot_vehicle_x), round(center_y - loco_height + 4)))
                     else:
                         pygame.draw.rect(
@@ -500,7 +598,7 @@ class Renderer:
                 )
                 surface.blit(bot_label, (round(bot_x), max(220, round(rail_y_at(bot_x) - 68))))
 
-        speed_limit_kmh = train.als.speed_limit(line, train.position, train.max_speed) * 3.6
+        speed_limit_kmh = train.als.speed_limit(line, train.position, train.max_speed, train)
         if depot_mode:
             # A shunting signal is fixed in the depot world, so it moves with
             # the camera rather than being painted as a screen-space icon.
@@ -539,6 +637,12 @@ class Renderer:
                          if depot_mode else
                          "A/← тормоз   D/→ тяга   SPACE экстр. тормоз   колесо — масштаб")
         surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 173))
+        if track_network is not None:
+            lane_label = track_network.lane_label(train)
+            surface.blit(self.small_font.render(
+                f"{lane_label}   Q/E — смена пути на стрелке   {track_network.last_message}",
+                True, (190, 210, 225)
+            ), (30, 278))
         if depot_mode:
             status = "МАНЕВРОВЫЙ МАРШРУТ ОТКРЫТ" if depot_route_set else "МАНЕВРОВЫЙ МАРШРУТ ЗАКРЫТ — R"
             surface.blit(self.small_font.render(status, True,

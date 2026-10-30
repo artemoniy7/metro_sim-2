@@ -570,29 +570,33 @@ class Renderer:
 
         # Draw AI trains using the same vehicle sprites and shared world camera.
         for bot_train in (other_trains or []):
+            reverse = getattr(bot_train, "direction", 1) < 0
             bot_x = (line.path.total_length - bot_train.position
                      - bot_train.loco_length_m - camera_x) * scale
             bot_loco_width = max(1, round(bot_train.loco_length_m * scale))
             bot_car_width = max(1, round(bot_train.car_length_m * scale))
             bot_vehicle_x = bot_x
-            for wagon in bot_train.wagons:
+            travelled = 0.0
+            wagons = reversed(bot_train.wagons) if reverse else bot_train.wagons
+            for wagon in wagons:
                 vehicle_width = bot_loco_width if wagon.is_loco else bot_car_width
                 vehicle_image = self.loco_image if wagon.is_loco else self.car_image
                 is_rear_cab = wagon.is_loco and wagon.index == len(bot_train.wagons) - 1
                 if is_rear_cab and vehicle_image is not None:
                     vehicle_image = pygame.transform.flip(vehicle_image, True, False)
+                vehicle_x = bot_vehicle_x
                 if bot_vehicle_x + vehicle_width >= -bot_loco_width and bot_vehicle_x <= width + bot_loco_width:
-                    bot_wagon_position = max(
-                        0.0, bot_train.position - max(0.0, (bot_vehicle_x - bot_x) / scale)
+                    wagon_position = (
+                        bot_train.position + travelled if reverse
+                        else bot_train.position - travelled
                     )
-                    center_y = rail_y_at(bot_vehicle_x + vehicle_width / 2) + self._train_track_offset(
-                        track_network, bot_train, bot_wagon_position
+                    center_y = rail_y_at(vehicle_x + vehicle_width / 2) + self._train_track_offset(
+                        track_network, bot_train, wagon_position
                     ) * scale
                     if vehicle_image is not None:
                         sprite = pygame.transform.smoothscale(
                             vehicle_image, (max(1, vehicle_width), max(1, loco_height))
                         )
-                        # AI doors are rendered independently of the player's door animation.
                         if getattr(bot_train, "doors_open", False):
                             saved_door_amount = self.door_open_amount
                             self.door_open_amount = 1.0
@@ -609,13 +613,14 @@ class Renderer:
                         ))
                         if not player_tracks.intersection(bot_tracks):
                             self._dim_train_sprite(sprite)
-                        surface.blit(sprite, (round(bot_vehicle_x), round(center_y - loco_height + 4)))
+                        surface.blit(sprite, (round(vehicle_x), round(center_y - loco_height + 4)))
                     else:
                         pygame.draw.rect(
                             surface, (130, 150, 170),
-                            (round(bot_vehicle_x), round(center_y - 44), vehicle_width, 44)
+                            (round(vehicle_x), round(center_y - 44), vehicle_width, 44)
                         )
-                bot_vehicle_x += vehicle_width
+                travelled += vehicle_width / scale
+                bot_vehicle_x += -vehicle_width if reverse else vehicle_width
             if -80 < bot_x < width + 80:
                 bot_label = self.small_font.render(
                     getattr(bot_train, "display_name", "Бот"),

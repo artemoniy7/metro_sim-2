@@ -8,6 +8,10 @@ from core.track_network import TrackNetwork
 class FakePath:
     total_length = 12000.0
 
+    @staticmethod
+    def grade_acceleration(distance):
+        return 0.0
+
 
 class FakeLine:
     path = FakePath()

@@ -341,6 +341,12 @@ class Renderer:
                                  (shed_x, ground_y - 125, shed_w, 125), 3)
                 pygame.draw.rect(surface, (43, 53, 61),
                                  (shed_x + 12, ground_y - 83, shed_w - 24, 83))
+        # Foreground ground is a backdrop: paint it before the tunnel and both tracks.
+        for sx in range(0, width, 4):
+            ex = min(width, sx + 4)
+            y1, y2 = rail_y_at(sx), rail_y_at(min(width - 1, ex))
+            pygame.draw.polygon(surface, (48, 51, 58), [(sx, y1 + 8), (ex, y2 + 8), (ex, height), (sx, height)])
+
         # Draw the lower opposing path over the tunnel backdrop, but keep it
         # inside the enlarged tunnel envelope. The main path is drawn last.
 
@@ -432,12 +438,6 @@ class Renderer:
                 elif any(abs(route_position - float(station.get("position", 0))) <= float(station.get("length_m", 155)) / 2 for station in line.stations):
                     track_y = rail_y_at(sx)
                     pygame.draw.rect(surface, (142, 24, 34), (sx, track_y - tunnel_height, 4, tunnel_height + 20))
-
-        # Foreground ground is a backdrop: paint it before the tunnel and both tracks.
-        for sx in range(0, width, 4):
-            ex = min(width, sx + 4)
-            y1, y2 = rail_y_at(sx), rail_y_at(min(width - 1, ex))
-            pygame.draw.polygon(surface, (48, 51, 58), [(sx, y1 + 8), (ex, y2 + 8), (ex, height), (sx, height)])
 
         self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 

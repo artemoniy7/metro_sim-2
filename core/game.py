@@ -189,6 +189,12 @@ class Game:
                 self.bot_trains.append(bot)
         self.line.traffic_trains = [self.train] + [bot.train for bot in self.bot_trains]
         self.line.update_signals(self.line.traffic_trains)
+        # The opposing track has its own block states and train occupancy.
+        self.line.update_signals(
+            [opposing.train for opposing in self.opposing_trains],
+            signals=self.line.opposing_signals,
+            direction=-1,
+        )
         self.camera.follow(self.train, self.line.path.total_length)
         self.audio.update(self.train, dt, self.camera)
         self.station_simulation.update(dt, self.train, self.doors_open)

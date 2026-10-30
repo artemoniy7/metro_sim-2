@@ -549,7 +549,6 @@ class Renderer:
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
                     ) * scale
-                    center_y += self._train_track_offset(track_network, train, wagon_position) * scale
                     surface.blit(sprite, (round(vehicle_x), round(center_y - loco_height + 4)))
                 else:
                     center_x = vehicle_x + vehicle_width / 2

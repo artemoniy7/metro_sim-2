@@ -41,19 +41,19 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertFalse(self.network.request_lane_change(train, -1, [train]))
 
     def test_change_starts_at_switch_and_occupies_both_tracks(self):
-        train = FakeTrain(900)
+        train = FakeTrain(800)
         self.assertTrue(self.network.request_lane_change(train, -1, [train]))
         self.assertEqual(train.occupied_track_indices, {0, 1})
-        self.assertNotEqual(self.network.lane_offset(train, 900),
+        self.assertNotEqual(self.network.lane_offset(train, 875),
                             self.network.lane_offset_for_index(1))
 
     def test_switch_is_blocked_by_train_on_conflicting_track(self):
-        train = FakeTrain(900)
-        other = FakeTrain(820, track_index=0)
+        train = FakeTrain(800)
+        other = FakeTrain(800, track_index=0)
         self.assertFalse(self.network.request_lane_change(train, -1, [train, other]))
 
     def test_switch_is_released_only_after_tail_clears(self):
-        train = FakeTrain(900)
+        train = FakeTrain(800)
         self.assertTrue(self.network.request_lane_change(train, -1, [train]))
         change_end = train.track_change["end"]
         train.position = change_end + 100

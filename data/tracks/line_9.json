@@ -41,7 +41,8 @@
     {
       "id": "main",
       "label": "Главный путь",
-      "offset_m": 0
+      "offset_m": 0,
+      "direction": 1
     },
     {
       "id": "right",
@@ -66,7 +67,8 @@
         39,
         43,
         51
-      ]
+      ],
+      "direction": 1
     }
   ],
   "station_switches": true,

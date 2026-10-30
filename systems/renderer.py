@@ -341,8 +341,8 @@ class Renderer:
                                  (shed_x, ground_y - 125, shed_w, 125), 3)
                 pygame.draw.rect(surface, (43, 53, 61),
                                  (shed_x + 12, ground_y - 83, shed_w - 24, 83))
-        # Parallel-track geometry is drawn after the foreground ground fill;
-        # otherwise the ground polygon hides the lower track completely.
+        # Draw the lower opposing path over the tunnel backdrop, but keep it
+        # inside the enlarged tunnel envelope. The main path is drawn last.
 
         tunnel_height = max(1, round(5.5 * scale))
         # Extend the foreground tunnel shell far enough to cover the deepest
@@ -351,7 +351,7 @@ class Renderer:
             (self._lane_offset_pixels(lane, scale) for lane in track_network.lanes),
             default=0.0,
         ) if track_network is not None else 0.0
-        tunnel_draw_height = tunnel_height + max(0, round(deepest_lane_offset))
+        tunnel_draw_height = tunnel_height + max(0, round(deepest_lane_offset)) + 24
         if self.tunnel_image is not None:
             tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
             tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
@@ -418,10 +418,10 @@ class Renderer:
                     src_x = min(tunnel_width - 1, max(0, src_x))
                     slice_width = min(strip_width, tunnel_width - src_x)
                     if slice_width > 0:
-                        surface.blit(tunnel_tile.subsurface((src_x, 0, slice_width, tunnel_draw_height)), (sx, track_y - tunnel_draw_height))
+                        surface.blit(tunnel_tile.subsurface((src_x, 0, slice_width, tunnel_draw_height)), (sx, track_y - tunnel_height))
                         if slice_width < strip_width:
                             extra_width = min(strip_width - slice_width, tunnel_width)
-                            surface.blit(tunnel_tile.subsurface((0, 0, extra_width, tunnel_draw_height)), (sx + slice_width, track_y - tunnel_draw_height))
+                            surface.blit(tunnel_tile.subsurface((0, 0, extra_width, tunnel_draw_height)), (sx + slice_width, track_y - tunnel_height))
         else:
             for sx in range(0, width, 4):
                 route_position = line.path.total_length - (camera_x + sx / scale)
@@ -433,13 +433,12 @@ class Renderer:
                     track_y = rail_y_at(sx)
                     pygame.draw.rect(surface, (142, 24, 34), (sx, track_y - tunnel_height, 4, tunnel_height + 20))
 
+        # Foreground ground is a backdrop: paint it before the tunnel and both tracks.
         for sx in range(0, width, 4):
             ex = min(width, sx + 4)
             y1, y2 = rail_y_at(sx), rail_y_at(min(width - 1, ex))
             pygame.draw.polygon(surface, (48, 51, 58), [(sx, y1 + 8), (ex, y2 + 8), (ex, height), (sx, height)])
 
-        # Draw adjacent tracks above the ground fill but before the main rails.
-        # Their trains use the same lane offset, keeping wheels on the visible rails.
         self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 
         sleeper_spacing = 2.5

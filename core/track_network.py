@@ -1,8 +1,4 @@
-"""Three-lane, same-level track layout with safe crossover reservations.
-
-Screen-space lane offsets are orthographic spacing only. They do not represent
-elevation, tunnels at different depths, or stacked railway levels.
-"""
+"""Parallel-track layout with world-space offsets and safe crossovers."""
 class TrackNetwork:
     def __init__(self, line, data=None):
         data = data or {}
@@ -14,8 +10,7 @@ class TrackNetwork:
             {"id": "right", "label": "Путь III", "offset_m": 3.43},
         ]))
         if not self.lanes:
-            self.lanes = [{"id": "main", "label": "Главный путь", "offset_px": 0,
-                           "tint": [255, 255, 255]}]
+            self.lanes = [{"id": "main", "label": "Главный путь", "offset_m": 0.0}]
         self.main_lane = max(0, min(len(self.lanes) - 1, self.main_lane))
         self.switch_length = max(40.0, float(data.get("switch_length_m", 100.0)))
         self.switch_window = max(self.switch_length, float(data.get("switch_window_m", 120.0)))

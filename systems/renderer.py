@@ -43,6 +43,7 @@ class Renderer:
         self._station_tile_cache = {}
         self.last_render_time = None
         self._tunnel_tile_cache = {}
+        self._opposing_tunnel_cache = {}
 
     def configure_line_station_sprites(self, line_id):
         """Load station textures only from the selected line's asset folder."""
@@ -651,14 +652,14 @@ class Renderer:
                     id(self.tunnel_image), opposing_tunnel_width,
                     opposing_tunnel_height, tunnel_alpha,
                 )
-                if overlay_key not in self._tunnel_tile_cache:
+                if overlay_key not in self._opposing_tunnel_cache:
                     overlay_tile = pygame.transform.smoothscale(
                         self.tunnel_image,
                         (opposing_tunnel_width, opposing_tunnel_height),
                     )
                     overlay_tile.set_alpha(tunnel_alpha)
-                    self._tunnel_tile_cache = {overlay_key: overlay_tile}
-                opposing_tunnel_tile = self._tunnel_tile_cache[overlay_key]
+                    self._opposing_tunnel_cache = {overlay_key: overlay_tile}
+                opposing_tunnel_tile = self._opposing_tunnel_cache[overlay_key]
                 for sx in range(0, width, 4):
                     world_x = camera_x + sx / scale
                     route_position = line.path.total_length - world_x

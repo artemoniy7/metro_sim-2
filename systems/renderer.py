@@ -182,8 +182,18 @@ class Renderer:
         return (0.45 * math.sin(world_x / 85.0)
                 + 0.18 * math.sin(world_x / 38.0 + 0.8))
 
+    @staticmethod
+    def _lane_offset_pixels(lane, scale):
+        # Track spacing is stored in metres, so every lane follows camera zoom.
+        # Legacy offset_px values are converted using the old default scale
+        # (10 px/m * zoom 2.8) to preserve the previous default composition.
+        offset_m = lane.get("offset_m")
+        if offset_m is None:
+            offset_m = float(lane.get("offset_px", 0.0)) / 28.0
+        return float(offset_m) * scale
+
     def _draw_parallel_tracks(self, surface, line, camera_x, scale, rail_y_at, network):
-        """Draw parallel paths in one orthographic plane, never as stacked levels."""
+        """Draw parallel paths with world-space spacing, behind the tunnel shell."""
         if network is None:
             return
         width = surface.get_width()
@@ -193,7 +203,7 @@ class Renderer:
         for lane_index, lane in enumerate(network.lanes):
             if lane_index == network.main_lane:
                 continue
-            offset = float(lane["offset_px"])
+            offset = self._lane_offset_pixels(lane, scale)
             rail_top = tuple(lane.get("rail_top", (145, 151, 160)))
             rail_side = tuple(lane.get("rail_side", (76, 83, 93)))
             sleeper_color = tuple(lane.get("sleeper", (88, 83, 76)))
@@ -240,8 +250,8 @@ class Renderer:
                     if sx < -20 or sx > width + 20:
                         continue
                     base_y = rail_y_at(max(0, min(width - 1, sx)))
-                    offset_a = float(network.lanes[lane_a]["offset_px"])
-                    offset_b = float(network.lanes[lane_b]["offset_px"])
+                    offset_a = self._lane_offset_pixels(network.lanes[lane_a], scale)
+                    offset_b = self._lane_offset_pixels(network.lanes[lane_b], scale)
                     y = base_y + offset_a + (offset_b - offset_a) * eased
                     rail_one.append((sx, round(y + 1)))
                     rail_two.append((sx, round(y + 7)))
@@ -251,15 +261,14 @@ class Renderer:
 
     @staticmethod
     def _train_track_offset(network, train, wagon_position):
+        # TrackNetwork returns metres; convert with the same camera scale as rails.
         return network.lane_offset(train, wagon_position) if network is not None else 0.0
 
     @staticmethod
-    def _tint_train_sprite(sprite, network, train, wagon_position):
-        if network is None:
-            return
-        tint = network.tint_for_train(train, wagon_position)
-        if tint != (255, 255, 255):
-            sprite.fill((*tint, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    def _dim_train_sprite(sprite):
+        # Trains on a different track are shown in shadow, without recolouring
+        # the player's own train or changing its appearance during a crossover.
+        sprite.fill((145, 150, 160, 255), special_flags=pygame.BLEND_RGBA_MULT)
 
     def draw_scene(self, surface, line, train, camera, elapsed, doors_open=False, door_closing=False, other_trains=None, station_simulation=None, depot_mode=False, depot_route_set=False, track_network=None):
         width, height = surface.get_size()
@@ -305,7 +314,8 @@ class Renderer:
                     offset_weight = blend
                     break
 
-            return round(base_track_y + (depth_m - 10.0) * 1.35
+            profile_scale = scale * (1.35 / 28.0)
+            return round(base_track_y + (depth_m - 10.0) * profile_scale
                          - self._track_offset(world_x) * scale * offset_weight)
 
         depot_length = float(getattr(line, "depot_length", 0.0))
@@ -331,12 +341,23 @@ class Renderer:
                                  (shed_x, ground_y - 125, shed_w, 125), 3)
                 pygame.draw.rect(surface, (43, 53, 61),
                                  (shed_x + 12, ground_y - 83, shed_w - 24, 83))
+        # Secondary tracks are drawn first. The tunnel/station shell then
+        # occludes the tracks that pass behind it; the main track is drawn last.
+        self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
+
         tunnel_height = max(1, round(5.5 * scale))
+        # Extend the foreground tunnel shell far enough to cover the deepest
+        # parallel track as well. Main rails are painted afterwards, in front.
+        deepest_lane_offset = max(
+            (self._lane_offset_pixels(lane, scale) for lane in track_network.lanes),
+            default=0.0,
+        ) if track_network is not None else 0.0
+        tunnel_draw_height = tunnel_height + max(0, round(deepest_lane_offset))
         if self.tunnel_image is not None:
-            tunnel_width = max(1, round(tunnel_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
-            tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_height)
+            tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
+            tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
             if tunnel_key not in self._tunnel_tile_cache:
-                self._tunnel_tile_cache = {tunnel_key: pygame.transform.smoothscale(self.tunnel_image, (tunnel_width, tunnel_height))}
+                self._tunnel_tile_cache = {tunnel_key: pygame.transform.smoothscale(self.tunnel_image, (tunnel_width, tunnel_draw_height))}
             tunnel_tile = self._tunnel_tile_cache[tunnel_key]
             strip_width = 4
             for sx in range(0, width, strip_width):
@@ -398,10 +419,10 @@ class Renderer:
                     src_x = min(tunnel_width - 1, max(0, src_x))
                     slice_width = min(strip_width, tunnel_width - src_x)
                     if slice_width > 0:
-                        surface.blit(tunnel_tile.subsurface((src_x, 0, slice_width, tunnel_height)), (sx, track_y - tunnel_height))
+                        surface.blit(tunnel_tile.subsurface((src_x, 0, slice_width, tunnel_draw_height)), (sx, track_y - tunnel_draw_height))
                         if slice_width < strip_width:
                             extra_width = min(strip_width - slice_width, tunnel_width)
-                            surface.blit(tunnel_tile.subsurface((0, 0, extra_width, tunnel_height)), (sx + slice_width, track_y - tunnel_height))
+                            surface.blit(tunnel_tile.subsurface((0, 0, extra_width, tunnel_draw_height)), (sx + slice_width, track_y - tunnel_draw_height))
         else:
             for sx in range(0, width, 4):
                 route_position = line.path.total_length - (camera_x + sx / scale)
@@ -432,8 +453,6 @@ class Renderer:
             y1, y2 = rail_y_at(sx), rail_y_at(min(width - 1, ex))
             pygame.draw.line(surface, (155, 160, 167), (sx, y1 + 1), (ex, y2 + 1), 4)
             pygame.draw.line(surface, (85, 90, 98), (sx, y1 + 7), (ex, y2 + 7), 2)
-
-        self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 
         for station in line.stations:
             x = int((line.path.total_length - float(station.get("position", 0)) - camera_x) * scale)
@@ -536,8 +555,7 @@ class Renderer:
                     )
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
-                    )
-                    self._tint_train_sprite(sprite, track_network, train, wagon_position)
+                    ) * scale
                     surface.blit(sprite, (round(vehicle_x), round(center_y - loco_height + 4)))
                 else:
                     center_x = vehicle_x + vehicle_width / 2
@@ -546,7 +564,7 @@ class Renderer:
                     )
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
-                    )
+                    ) * scale
                     pygame.draw.rect(surface, (205, 210, 215) if wagon.is_loco else (185, 190, 196), (round(vehicle_x), round(center_y - 48 + 4), vehicle_width, 48))
             vehicle_x += vehicle_width
 
@@ -569,7 +587,7 @@ class Renderer:
                     )
                     center_y = rail_y_at(bot_vehicle_x + vehicle_width / 2) + self._train_track_offset(
                         track_network, bot_train, bot_wagon_position
-                    )
+                    ) * scale
                     if vehicle_image is not None:
                         sprite = pygame.transform.smoothscale(
                             vehicle_image, (max(1, vehicle_width), max(1, loco_height))
@@ -583,7 +601,14 @@ class Renderer:
                                 is_loco=wagon.is_loco, is_rear_cab=is_rear_cab
                             )
                             self.door_open_amount = saved_door_amount
-                        self._tint_train_sprite(sprite, track_network, bot_train, bot_wagon_position)
+                        player_tracks = set(getattr(
+                            train, "occupied_track_indices", {getattr(train, "track_index", 1)}
+                        ))
+                        bot_tracks = set(getattr(
+                            bot_train, "occupied_track_indices", {getattr(bot_train, "track_index", 1)}
+                        ))
+                        if not player_tracks.intersection(bot_tracks):
+                            self._dim_train_sprite(sprite)
                         surface.blit(sprite, (round(bot_vehicle_x), round(center_y - loco_height + 4)))
                     else:
                         pygame.draw.rect(

@@ -9,10 +9,13 @@ class Camera:
         # Positive offset pans from the locomotive toward the following cars.
         self.consist_offset_m = 0.0
         self.focus_screen_x = self.width * 0.36
+        # Temporary framing adjustments while the control panel is visible.
+        self.panel_zoom_factor = 1.0
+        self.panel_vertical_offset = 0.0
 
     @property
     def pixels_per_metre(self):
-        return 10.0 * self.zoom
+        return 10.0 * self.zoom * self.panel_zoom_factor
 
     def zoom_by(self, amount):
         self.zoom = max(0.65, min(3.5, self.zoom + amount))

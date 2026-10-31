@@ -333,7 +333,7 @@ class Renderer:
         elif self.door_open_amount > target_door_amount:
             self.door_open_amount = max(target_door_amount, self.door_open_amount - door_step)
         scale = camera.pixels_per_metre
-        base_track_y = int(height * 0.79)
+        base_track_y = int(height * 0.79 - camera.panel_vertical_offset)
         camera_x = camera.x
 
         def rail_y_at(screen_x):
@@ -368,7 +368,7 @@ class Renderer:
                          - self._track_offset(world_x) * scale * offset_weight)
 
         depot_length = float(getattr(line, "depot_length", 0.0))
-        ground_y = int(height * 0.58)
+        ground_y = int(height * 0.58 - camera.panel_vertical_offset)
         pygame.draw.rect(surface, (25, 30, 39), (0, 0, width, height))
         if depot_length > 0.0:
             # Surface depot scenery is drawn in world coordinates; it scrolls

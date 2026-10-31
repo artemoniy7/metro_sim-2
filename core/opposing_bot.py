@@ -16,16 +16,25 @@ class OpposingBot:
         self.target_station = None
         self.dwell_timer = 0.0
 
+    def _station_stop_position(self, station):
+        # The reverse train's position is its leading end. Its consist extends
+        # toward increasing route coordinates, so place its front half a
+        # consist-length before the station center to center the whole train
+        # over the platform.
+        return (
+            float(station.get("position", 0))
+            - self.train.consist_length_m / 2.0
+        )
+
     def _next_station(self, line):
         # Keep the selected platform as the target until the train has
-        # actually stopped there. Without this, the station drops out of the
-        # candidate list inside the final 3 m and the train skips its stop.
+        # actually stopped there.
         if self.target_station is not None:
             return self.target_station
 
         candidates = [
             station for station in line.stations
-            if float(station.get("position", 0)) < self.train.position - 3.0
+            if self._station_stop_position(station) < self.train.position - 3.0
         ]
         return max(candidates, key=lambda item: float(item.get("position", 0)), default=None)
 
@@ -49,14 +58,20 @@ class OpposingBot:
 
         station = self._next_station(line)
         self.target_station = station
-        distance = (train.position - float(station.get("position", 0))
-                    if station is not None else float("inf"))
+        stop_position = (
+            self._station_stop_position(station)
+            if station is not None else None
+        )
+        distance = (
+            train.position - stop_position
+            if stop_position is not None else float("inf")
+        )
         speed = max(0.0, train.speed)
         stopping_distance = speed * speed / (2.0 * 0.85) + speed * 1.8 + 22.0
         target_speed = min(train.max_speed, 72.0 / 3.6)
 
         if station is not None and abs(distance) <= 3.0 and speed <= 0.8:
-            train.position = float(station.get("position", train.position))
+            train.position = stop_position
             train.speed = 0.0
             train.acceleration_state = 0.0
             train.controller_notch = 0

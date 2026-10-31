@@ -43,11 +43,9 @@ class Train:
         self.SPEED_MARGIN_KMH = 1.0
         self.acceleration_state = 0.0
         # Pneumatic brake circuit pressures (kgf/cm²).
-        self.pressure_nm = 7.5  # Main reservoir / pressure line.
+        self.pressure_nm = 7.5  # Main reservoir (compressor recovery below 6.0).
         self.pressure_tm = 5.0  # Brake pipe: charged in the released state.
         self.pressure_tc = 0.0  # Brake cylinders: empty when released.
-        self.tc_fill_rate = 1.2
-        self.tc_release_rate = 2.0
         # Compatibility flag for systems that still inspect this property.
         # Braking force itself is calculated from pressure_tc below.
         self.brake_applied = False
@@ -127,9 +125,8 @@ class Train:
         # Positive grade acceleration means gravity helps the train move forward.
         natural_acceleration = grade_acceleration - resistance if self.speed > 0 else grade_acceleration
 
-        # Pneumatic brake response: T1 builds cylinder pressure gently,
-        # while T3 fills the cylinders faster. Emergency braking dumps the
-        # brake pipe and applies full cylinder pressure immediately.
+        # Pneumatic brake response is modeled through brake-pipe and
+        # brake-cylinder pressures, with an immediate emergency override.
         brake_commanded = self.emergency_brake_active or self.controller_notch < 0
         if self._was_brake_commanded and not brake_commanded:
             if abs(self.speed) < 0.2 / 3.6:
@@ -145,40 +142,52 @@ class Train:
         self._was_brake_commanded = brake_commanded
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
-        if self.emergency_brake_active:
-            self.pressure_tm = 0.0
-            self.pressure_tc = 3.5
-        elif self.controller_notch < 0:
-            if self._brake_command_timer >= self.BRAKE_RESPONSE_DELAY_S:
-                brake_level = min(3, abs(self.controller_notch))
-                target_tc_pressure = 2.3 + brake_level * 0.4
-                # T1: 0.9 kgf/cm²/s; T2: 1.2; T3: 1.5.
-                fill_multiplier = 0.5 + 0.25 * brake_level
-                fill_step = self.tc_fill_rate * fill_multiplier * dt
-                self.pressure_tc += max(
-                    -fill_step,
-                    min(fill_step, target_tc_pressure - self.pressure_tc),
-                )
-                tm_fill_rate = 1.0 + 0.35 * (brake_level - 1)
-                tm_step = tm_fill_rate * dt
-                self.pressure_tm += max(
-                    -tm_step, min(tm_step, 3.0 - self.pressure_tm)
-                )
+        # 1. Brake-pipe pressure follows the controller and emergency circuit.
+        if self.controller_notch < 0 or self.emergency_brake_active:
+            target_tm = 0.0 if self.emergency_brake_active else 3.0
         else:
-            # Recharging the brake pipe releases the cylinder pressure.
-            self.pressure_tm += max(
-                -1.5 * dt, min(1.5 * dt, 5.0 - self.pressure_tm)
-            )
-            self.pressure_tc = max(
-                0.0, self.pressure_tc - self.tc_release_rate * dt
-            )
+            target_tm = 5.0
+
+        pressure_tm_step = 2.0 * dt
+        if self.pressure_tm > target_tm:
+            self.pressure_tm = max(target_tm, self.pressure_tm - pressure_tm_step)
+        elif self.pressure_tm < target_tm:
+            self.pressure_tm = min(target_tm, self.pressure_tm + pressure_tm_step)
+
+        # 2. Cylinder pressure builds only for a service-brake command.
+        if self.emergency_brake_active:
+            # The safety loop applies the emergency pressure immediately.
+            self.pressure_tc = 3.5
+        else:
+            if self.controller_notch < 0 and self.pressure_tm < 4.5:
+                brake_level = min(3, abs(self.controller_notch))
+                target_tc = 2.3 + (brake_level - 1) * 0.6
+            else:
+                target_tc = 0.0
+
+            if self.pressure_tc < target_tc:
+                self.pressure_tc = min(target_tc, self.pressure_tc + 1.5 * dt)
+            elif self.pressure_tc > target_tc:
+                self.pressure_tc = max(target_tc, self.pressure_tc - 1.0 * dt)
+
+        # The main reservoir compressor is simulated as pressure recovery only.
+        # No audio playback or audio-system changes are made here.
+        if self.pressure_nm < 6.0:
+            self.pressure_nm = min(8.0, self.pressure_nm + 0.5 * dt)
+        elif self.pressure_nm > 8.0:
+            self.pressure_nm = 8.0
 
         self.pressure_tm = max(0.0, min(5.0, self.pressure_tm))
         self.pressure_tc = max(0.0, min(3.5, self.pressure_tc))
-        self.brake_applied = self.pressure_tc > 0.05
+        self.pressure_nm = max(0.0, self.pressure_nm)
+        self.brake_applied = self.pressure_tc > 0.1
 
-        # Cylinder pressure, not controller position, determines braking force.
+        # Cylinder pressure determines service braking; emergency uses its
+        # configured maximum deceleration independently of cylinder ramping.
         deceleration = self.pressure_tc * 0.35
+        if self.emergency_brake_active:
+            deceleration = self.emergency_brake
+
         if deceleration > 0.0:
             target_acceleration = -deceleration + grade_acceleration - resistance
             change = self.jerk_limit * dt

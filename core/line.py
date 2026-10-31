@@ -42,7 +42,7 @@ class Line:
             center = float(station.get("position", 0))
             half_length = float(station.get("length_m", 162)) / 2.0
             entry_position = max(0.0, center - half_length - 50.0)
-            exit_position = min(total, center + half_length + 10.0)
+            exit_position = min(total, center + half_length + 50.0)
             self.signals.append(Signal(
                 entry_position, "green", f"С{index}В",
                 operational=True, kind="station_entry", lamp_count=2,
@@ -81,7 +81,7 @@ class Line:
                     if signal.kind == "station_entry":
                         position = min(self.path.total_length, center + half_length + 50.0)
                     else:
-                        position = max(0.0, center - half_length - 10.0)
+                        position = max(0.0, center - half_length - 50.0)
             opposing.append(Signal(
                 position=position, aspect=signal.aspect, name=signal.name,
                 operational=signal.operational, kind=signal.kind,

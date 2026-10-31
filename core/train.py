@@ -42,6 +42,14 @@ class Train:
         self.OVERSPEED_GRACE_S = 3.6
         self.SPEED_MARGIN_KMH = 1.0
         self.acceleration_state = 0.0
+        # Pneumatic brake circuit pressures (kgf/cm²).
+        self.pressure_nm = 7.5  # Main reservoir / pressure line.
+        self.pressure_tm = 5.0  # Brake pipe: charged in the released state.
+        self.pressure_tc = 0.0  # Brake cylinders: empty when released.
+        self.tc_fill_rate = 1.2
+        self.tc_release_rate = 2.0
+        # Compatibility flag for systems that still inspect this property.
+        # Braking force itself is calculated from pressure_tc below.
         self.brake_applied = False
         self._brake_command_timer = 0.0
         self._was_brake_commanded = False
@@ -75,7 +83,7 @@ class Train:
             return f"T{abs(self.controller_notch)}"
         if self.controller_notch > 0:
             return f"G{self.controller_notch}"
-        return "0 (выбег)"
+        return "0 (перекрыша)"
 
     def update(self, dt, line):
         if dt <= 0:
@@ -119,11 +127,11 @@ class Train:
         # Positive grade acceleration means gravity helps the train move forward.
         natural_acceleration = grade_acceleration - resistance if self.speed > 0 else grade_acceleration
 
-        # The train takes one second to react to a brake command.
+        # Pneumatic brake response: T1 builds cylinder pressure gently,
+        # while T3 fills the cylinders faster. Emergency braking dumps the
+        # brake pipe and applies full cylinder pressure immediately.
         brake_commanded = self.emergency_brake_active or self.controller_notch < 0
         if self._was_brake_commanded and not brake_commanded:
-            # At a stop, play the 4 s release sound, then wait 1.5 s before allowing traction.
-            # When releasing the brakes while moving, neither sound nor extra delay is needed.
             if abs(self.speed) < 0.2 / 3.6:
                 self.brake_release_timer = (
                     self.BRAKE_RELEASE_SOUND_S + self.TRACTION_DELAY_AFTER_RELEASE_S
@@ -135,22 +143,43 @@ class Train:
         else:
             self._brake_command_timer = 0.0
         self._was_brake_commanded = brake_commanded
-        self.brake_applied = brake_commanded and self._brake_command_timer >= self.BRAKE_RESPONSE_DELAY_S
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
-        if self.brake_applied:
-            if self.overspeed_emergency_active:
-                # Emergency braking is 1.3 times the strongest T3 service notch.
-                deceleration = self.brake_notches[-1] * 1.3
-            elif self.emergency_brake_active:
-                deceleration = self.emergency_brake
-            else:
-                # T1 is gentle braking; T3 applies the strongest service braking.
-                index = min(len(self.brake_notches) - 1, abs(self.controller_notch) - 1)
-                deceleration = self.brake_notches[index]
+        if self.emergency_brake_active:
+            self.pressure_tm = 0.0
+            self.pressure_tc = 3.5
+        elif self.controller_notch < 0:
+            if self._brake_command_timer >= self.BRAKE_RESPONSE_DELAY_S:
+                brake_level = min(3, abs(self.controller_notch))
+                target_tc_pressure = 2.3 + brake_level * 0.4
+                # T1: 0.9 kgf/cm²/s; T2: 1.2; T3: 1.5.
+                fill_multiplier = 0.5 + 0.25 * brake_level
+                fill_step = self.tc_fill_rate * fill_multiplier * dt
+                self.pressure_tc += max(
+                    -fill_step,
+                    min(fill_step, target_tc_pressure - self.pressure_tc),
+                )
+                tm_fill_rate = 1.0 + 0.35 * (brake_level - 1)
+                tm_step = tm_fill_rate * dt
+                self.pressure_tm += max(
+                    -tm_step, min(tm_step, 3.0 - self.pressure_tm)
+                )
+        else:
+            # Recharging the brake pipe releases the cylinder pressure.
+            self.pressure_tm += max(
+                -1.5 * dt, min(1.5 * dt, 5.0 - self.pressure_tm)
+            )
+            self.pressure_tc = max(
+                0.0, self.pressure_tc - self.tc_release_rate * dt
+            )
 
-            # Ramp braking force in gradually instead of changing speed abruptly.
-            # Gravity can help or oppose braking; rolling resistance always slows the train.
+        self.pressure_tm = max(0.0, min(5.0, self.pressure_tm))
+        self.pressure_tc = max(0.0, min(3.5, self.pressure_tc))
+        self.brake_applied = self.pressure_tc > 0.05
+
+        # Cylinder pressure, not controller position, determines braking force.
+        deceleration = self.pressure_tc * 0.35
+        if deceleration > 0.0:
             target_acceleration = -deceleration + grade_acceleration - resistance
             change = self.jerk_limit * dt
             self.acceleration_state += max(
@@ -167,7 +196,11 @@ class Train:
                 self.acceleration_state = min(0.0, self.acceleration_state)
             else:
                 target_acceleration = natural_acceleration
-                if self.controller_notch > 0 and not self.doors_open and self.brake_release_timer <= 0.0:
+                # Traction remains locked until the brake cylinders are fully
+                # exhausted, including after an emergency brake application.
+                traction_released = self.pressure_tc <= 0.01
+                if (self.controller_notch > 0 and traction_released
+                        and not self.doors_open and self.brake_release_timer <= 0.0):
                     index = min(len(self.traction_notches) - 1, self.controller_notch - 1)
                     traction_acceleration = self.traction_notches[index]
                     # Traction fades strongly at high speed. This makes the last

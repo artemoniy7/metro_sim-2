@@ -154,19 +154,21 @@ class Train:
         elif self.pressure_tm < target_tm:
             self.pressure_tm = min(target_tm, self.pressure_tm + pressure_tm_step)
 
-        # 2. Cylinder pressure builds only after brake-pipe pressure falls.
+        # 2. Cylinder pressure builds only for a service-brake command.
         if self.emergency_brake_active:
-            target_tc = 3.5
-        elif self.pressure_tm < 4.5:
-            brake_level = min(3, abs(self.controller_notch))
-            target_tc = 2.3 + (brake_level - 1) * 0.6
+            # The safety loop applies the emergency pressure immediately.
+            self.pressure_tc = 3.5
         else:
-            target_tc = 0.0
+            if self.controller_notch < 0 and self.pressure_tm < 4.5:
+                brake_level = min(3, abs(self.controller_notch))
+                target_tc = 2.3 + (brake_level - 1) * 0.6
+            else:
+                target_tc = 0.0
 
-        if self.pressure_tc < target_tc:
-            self.pressure_tc = min(target_tc, self.pressure_tc + 1.5 * dt)
-        elif self.pressure_tc > target_tc:
-            self.pressure_tc = max(target_tc, self.pressure_tc - 1.0 * dt)
+            if self.pressure_tc < target_tc:
+                self.pressure_tc = min(target_tc, self.pressure_tc + 1.5 * dt)
+            elif self.pressure_tc > target_tc:
+                self.pressure_tc = max(target_tc, self.pressure_tc - 1.0 * dt)
 
         # The main reservoir compressor is simulated as pressure recovery only.
         # No audio playback or audio-system changes are made here.

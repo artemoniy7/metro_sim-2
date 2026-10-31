@@ -1,6 +1,6 @@
 """Main game state and scene manager."""
 import pygame
-from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR, ASSETS_DIR
+from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR
 from core.train import Train
 from core.bot import BotTrain
 from core.opposing_bot import OpposingBot
@@ -46,21 +46,6 @@ class Game:
         self.camera = Camera(viewport_size, zoom=2.8)
         self.elapsed = 0.0
         self.doors_open = False
-        # The control panel starts hidden; only its small handle remains visible.
-        self.control_panel_open = False
-        self.control_panel_y = None
-        self.control_panel_images = {}
-        self.control_panel_scaled_cache = {}
-        for image_name in ("speed-menu.png", "door-menu.png"):
-            image_path = ASSETS_DIR / "ui" / "train-ui" / "81-760" / image_name
-            try:
-                image = pygame.image.load(str(image_path)).convert_alpha()
-                # Keep the source pixels intact; the white canvas is keyed out
-                # again after scaling because smoothscale creates a new Surface.
-                image.set_colorkey((255, 255, 255))
-                self.control_panel_images[image_name] = image
-            except (pygame.error, OSError):
-                self.control_panel_images[image_name] = None
         # The player's initial position is reserved; AI trains enter every
         # two minutes and are recycled to the line start after the terminus.
         self.bot_trains = []
@@ -105,23 +90,8 @@ class Game:
         opposing.train.display_name = "Встречный состав"
         self.opposing_trains.append(opposing)
 
-    def _control_panel_metrics(self, width, height):
-        # The cab instruments need most of the screen: two wide panels are
-        # stacked vertically, so a short drawer makes both unreadably small.
-        panel_height = min(height - 36, max(210, int(height * 0.42)))
-        handle_height = 36
-        target_y = height - panel_height if self.control_panel_open else height - handle_height
-        return panel_height, handle_height, target_y
-
-    def _toggle_control_panel(self):
-        self.control_panel_open = not self.control_panel_open
-
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-            self.control_panel_open = True
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-            self.control_panel_open = False
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             pygame.event.post(pygame.event.Event(pygame.QUIT))
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_v:
             # Doors may only be operated while the train is completely stopped.
@@ -145,16 +115,7 @@ class Game:
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                display = pygame.display.get_surface()
-                if display is not None:
-                    width, height = display.get_size()
-                    if self.control_panel_y is None:
-                        self.control_panel_y = float(height - 36)
-                    handle = pygame.Rect(width // 2 - 48, round(self.control_panel_y), 96, 36)
-                    if handle.collidepoint(event.pos):
-                        self._toggle_control_panel()
-            elif event.button == 4:
+            if event.button == 4:
                 self.camera.zoom_by(0.15)
             elif event.button == 5:
                 self.camera.zoom_by(-0.15)
@@ -167,27 +128,6 @@ class Game:
 
     def update(self, dt):
         self.elapsed += dt
-        display = pygame.display.get_surface()
-        if display is not None:
-            width, height = display.get_size()
-            _, _, target_y = self._control_panel_metrics(width, height)
-            if self.control_panel_y is None:
-                self.control_panel_y = float(height - 36)
-            # A steady slide takes roughly half a second on a typical display.
-            distance = target_y - self.control_panel_y
-            step = 620.0 * dt
-            if abs(distance) <= step:
-                self.control_panel_y = float(target_y)
-            else:
-                self.control_panel_y += step if distance > 0 else -step
-
-            # Reframe the scene as the panel rises: pull back slightly and
-            # move the train/track upward so the panel does not cover them.
-            panel_height, _, _ = self._control_panel_metrics(width, height)
-            visible_ratio = max(0.0, min(1.0,
-                (height - self.control_panel_y) / float(panel_height)))
-            self.camera.panel_zoom_factor = 1.0 - 0.12 * visible_ratio
-            self.camera.panel_vertical_offset = panel_height * 0.55 * visible_ratio
         self.controls.update(self.train, dt)
         # Do not retain a traction command while the doors are open.
         if self.doors_open and self.train.controller_notch > 0:
@@ -288,69 +228,3 @@ class Game:
             if callable(stop_door_ring):
                 stop_door_ring()
 
-        # Sliding placeholder for the future 81-760 cab controls.
-        width, height = surface.get_size()
-        panel_height, handle_height, target_y = self._control_panel_metrics(width, height)
-        if self.control_panel_y is None:
-            self.control_panel_y = float(height - handle_height)
-        panel_y = max(0, min(height, round(self.control_panel_y)))
-        panel_rect = pygame.Rect(0, panel_y, width, height - panel_y)
-        pygame.draw.rect(surface, (1, 145, 197), panel_rect)
-        pygame.draw.line(surface, (0, 69, 105), (0, panel_y), (width, panel_y), 3)
-
-        # The two 81-760 photo panels travel with the sliding background.
-        # Keep their proportions and cache each scaled size to avoid per-frame resampling.
-        content_top = panel_y + handle_height + 8
-        content_bottom = height - 10
-        content_height = max(1, content_bottom - content_top)
-        image_gap = 6
-        slot_height = max(1, (content_height - image_gap) // 2)
-        max_image_width = max(1, int(width * 0.92))
-        for image_name, slot_index, size_factor in (
-            ("speed-menu.png", 0, 1.0),
-            ("door-menu.png", 1, 0.88),
-        ):
-            source_image = self.control_panel_images.get(image_name)
-            if source_image is None:
-                continue
-            target_height = max(1, int(slot_height * size_factor))
-            target_width = min(
-                max_image_width,
-                max(1, round(target_height * source_image.get_width() / source_image.get_height()))
-            )
-            if target_width / source_image.get_width() > target_height / source_image.get_height():
-                target_width = max(1, round(target_height * source_image.get_width() / source_image.get_height()))
-            cache_key = (image_name, target_width, target_height)
-            scaled_image = self.control_panel_scaled_cache.get(cache_key)
-            if scaled_image is None:
-                scale = min(
-                    max_image_width / source_image.get_width(),
-                    target_height / source_image.get_height(),
-                )
-                scaled_size = (
-                    max(1, round(source_image.get_width() * scale)),
-                    max(1, round(source_image.get_height() * scale)),
-                )
-                cache_key = (image_name, *scaled_size)
-                scaled_image = self.control_panel_scaled_cache.get(cache_key)
-                if scaled_image is None:
-                    scaled_image = pygame.transform.smoothscale(source_image, scaled_size)
-                    self.control_panel_scaled_cache[cache_key] = scaled_image
-            slot_y = content_top + slot_index * (slot_height + image_gap)
-            image_x = (width - scaled_image.get_width()) // 2
-            image_y = slot_y + max(0, (slot_height - scaled_image.get_height()) // 2)
-            surface.blit(scaled_image, (image_x, image_y))
-
-        handle_rect = pygame.Rect(width // 2 - 48, panel_y, 96, handle_height)
-        pygame.draw.rect(surface, (0, 91, 133), handle_rect, border_radius=8)
-        pygame.draw.rect(surface, (190, 225, 238), handle_rect, width=2, border_radius=8)
-        center_x = handle_rect.centerx
-        if self.control_panel_open:
-            arrow = [(center_x - 10, panel_y + 13),
-                     (center_x + 10, panel_y + 13),
-                     (center_x, panel_y + 24)]
-        else:
-            arrow = [(center_x - 10, panel_y + 23),
-                     (center_x + 10, panel_y + 23),
-                     (center_x, panel_y + 12)]
-        pygame.draw.polygon(surface, (245, 250, 252), arrow)

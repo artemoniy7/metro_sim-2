@@ -1,6 +1,6 @@
 """Main game state and scene manager."""
 import pygame
-from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR, ASSETS_DIR
+from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR
 from core.train import Train
 from core.bot import BotTrain
 from core.opposing_bot import OpposingBot

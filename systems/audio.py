@@ -83,6 +83,10 @@ class AudioSystem:
         self._played_near_stop = False
         self._last_brake_notch = 0
         self._brake_repeat_timer = 0.0
+        self.compressor_sounds = {}
+        self.compressor_channel = None
+        self._compressor_active = False
+        self._compressor_starting = False
 
         try:
             if pygame.mixer.get_init() is None:
@@ -116,7 +120,7 @@ class AudioSystem:
 
             # Give each sound category its own channels. Track-joint sounds
             # must never steal a channel from the motor, brakes, or announcements.
-            pygame.mixer.set_num_channels(max(33, pygame.mixer.get_num_channels()))
+            pygame.mixer.set_num_channels(max(34, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
             self.rolling_channels = [pygame.mixer.Channel(i) for i in range(3)]
             self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 6)]
@@ -130,6 +134,9 @@ class AudioSystem:
             self.door_channel = pygame.mixer.Channel(12)
             self.joint_channels = [pygame.mixer.Channel(i) for i in range(13, 32)]
             self.station_ambience_channel = pygame.mixer.Channel(32)
+            # Dedicated channel: compressor audio must not interrupt brakes,
+            # announcements, motors, or rail-joint recordings.
+            self.compressor_channel = pygame.mixer.Channel(33)
             station_sound_dir = ASSETS_DIR / "sounds" / "station"
             for crowd, filename in (
                 ("empty", "station_ambience_empty_01.wav"),
@@ -158,6 +165,20 @@ class AudioSystem:
                 )
             except (pygame.error, OSError):
                 self.overspeed_ring_sound = None
+
+            # Compressor recordings: a one-shot start, continuous loop, and
+            # one-shot shutdown. Missing optional clips do not affect gameplay.
+            for key, filename in (
+                ("start", "compressor_start.wav"),
+                ("loop", "compressor_loop.wav"),
+                ("end", "compressor_end.wav"),
+            ):
+                try:
+                    self.compressor_sounds[key] = pygame.mixer.Sound(
+                        str(brake_dir / filename)
+                    )
+                except (pygame.error, OSError):
+                    self.compressor_sounds[key] = None
 
             for key, filename in (
                 ("gentle", "brake_squeal1.wav"),
@@ -513,6 +534,47 @@ class AudioSystem:
                 self.overspeed_ring_channel.stop()
             self.overspeed_ring_active = False
 
+    def _update_compressor(self, train):
+        """Run the 81-760 compressor below 7 kgf/cm² and stop after recovery."""
+        channel = self.compressor_channel
+        if channel is None:
+            return
+
+        pressure = float(getattr(train, "pressure_nm", 8.0))
+        start_sound = self.compressor_sounds.get("start")
+        loop_sound = self.compressor_sounds.get("loop")
+        end_sound = self.compressor_sounds.get("end")
+
+        if pressure < 7.0:
+            if not self._compressor_active:
+                self._compressor_active = True
+                self._compressor_starting = start_sound is not None
+                channel.stop()
+                if start_sound is not None:
+                    channel.set_volume(0.65)
+                    channel.play(start_sound)
+                elif loop_sound is not None:
+                    channel.set_volume(0.65)
+                    channel.play(loop_sound, loops=-1)
+            elif self._compressor_starting:
+                if not channel.get_busy():
+                    self._compressor_starting = False
+                    if loop_sound is not None:
+                        channel.set_volume(0.65)
+                        channel.play(loop_sound, loops=-1)
+            elif loop_sound is not None and not channel.get_busy():
+                channel.set_volume(0.65)
+                channel.play(loop_sound, loops=-1)
+            return
+
+        if self._compressor_active:
+            self._compressor_active = False
+            self._compressor_starting = False
+            channel.stop()
+            if end_sound is not None:
+                channel.set_volume(0.65)
+                channel.play(end_sound)
+
     def _update_brakes(self, train, dt):
         """Play brake sounds only while the train is actually applying the brakes."""
         speed_kmh = abs(train.speed) * 3.6
@@ -782,6 +844,7 @@ class AudioSystem:
         self._update_overspeed_warning(train)
         self._update_rolling(speed)
         self._update_engine(train, dt)
+        self._update_compressor(train)
         self._update_brakes(train, dt)
         if not self.sounds:
             return

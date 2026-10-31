@@ -142,6 +142,10 @@ class Train:
         self._was_brake_commanded = brake_commanded
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
+        # Track air usage from the main reservoir as the brake circuit changes.
+        previous_tm_pressure = self.pressure_tm
+        previous_tc_pressure = self.pressure_tc
+
         # 1. Brake-pipe pressure follows the controller and emergency circuit.
         if self.controller_notch < 0 or self.emergency_brake_active:
             target_tm = 0.0 if self.emergency_brake_active else 3.0
@@ -170,9 +174,16 @@ class Train:
             elif self.pressure_tc > target_tc:
                 self.pressure_tc = max(target_tc, self.pressure_tc - 1.0 * dt)
 
-        # The main reservoir compressor is simulated as pressure recovery only.
-        # No audio playback or audio-system changes are made here.
-        if self.pressure_nm < 6.0:
+        # Filling the brake cylinders and recharging the brake pipe consume
+        # air from the main reservoir. The coefficients are simplified so the
+        # reservoir pressure falls enough to trigger the compressor naturally.
+        cylinder_air_used = max(0.0, self.pressure_tc - previous_tc_pressure)
+        pipe_air_used = max(0.0, self.pressure_tm - previous_tm_pressure)
+        self.pressure_nm -= cylinder_air_used * 0.25 + pipe_air_used * 0.08
+
+        # The compressor starts below 7.0 kgf/cm² and restores the reservoir
+        # towards 8.0 kgf/cm²; AudioSystem plays the matching recordings.
+        if self.pressure_nm < 7.0:
             self.pressure_nm = min(8.0, self.pressure_nm + 0.5 * dt)
         elif self.pressure_nm > 8.0:
             self.pressure_nm = 8.0

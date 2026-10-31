@@ -55,7 +55,8 @@ class Game:
             image_path = ASSETS_DIR / "ui" / "train-ui" / "81-760" / image_name
             try:
                 image = pygame.image.load(str(image_path)).convert_alpha()
-                # Pure white in these source mockups is the transparent canvas.
+                # Keep the source pixels intact; the white canvas is keyed out
+                # again after scaling because smoothscale creates a new Surface.
                 image.set_colorkey((255, 255, 255))
                 self.control_panel_images[image_name] = image
             except (pygame.error, OSError):
@@ -105,7 +106,9 @@ class Game:
         self.opposing_trains.append(opposing)
 
     def _control_panel_metrics(self, width, height):
-        panel_height = min(height - 36, max(210, int(height * 0.34)))
+        # The cab instruments need most of the screen: two wide panels are
+        # stacked vertically, so a short drawer makes both unreadably small.
+        panel_height = max(1, height - 36)
         handle_height = 36
         target_y = height - panel_height if self.control_panel_open else height - handle_height
         return panel_height, handle_height, target_y
@@ -332,6 +335,9 @@ class Game:
                 scaled_image = self.control_panel_scaled_cache.get(cache_key)
                 if scaled_image is None:
                     scaled_image = pygame.transform.smoothscale(source_image, scaled_size)
+                    # smoothscale does not reliably preserve the source color key.
+                    # Reapply it to the actual surface that is blitted.
+                    scaled_image.set_colorkey((255, 255, 255))
                     self.control_panel_scaled_cache[cache_key] = scaled_image
             slot_y = content_top + slot_index * (slot_height + image_gap)
             image_x = (width - scaled_image.get_width()) // 2

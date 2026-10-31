@@ -179,7 +179,7 @@ class Train:
         # reservoir pressure falls enough to trigger the compressor naturally.
         cylinder_air_used = max(0.0, self.pressure_tc - previous_tc_pressure)
         pipe_air_used = max(0.0, self.pressure_tm - previous_tm_pressure)
-        self.pressure_nm -= cylinder_air_used * 0.25 + pipe_air_used * 0.08
+        self.pressure_nm -= cylinder_air_used * 2.5 + pipe_air_used * 0.8
 
         # The compressor starts below 7.0 kgf/cm² and restores the reservoir
         # towards 8.0 kgf/cm²; AudioSystem plays the matching recordings.

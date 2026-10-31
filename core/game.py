@@ -166,6 +166,14 @@ class Game:
                 self.control_panel_y = float(target_y)
             else:
                 self.control_panel_y += step if distance > 0 else -step
+
+            # Reframe the scene as the panel rises: pull back slightly and
+            # move the train/track upward so the panel does not cover them.
+            panel_height, _, _ = self._control_panel_metrics(width, height)
+            visible_ratio = max(0.0, min(1.0,
+                (height - self.control_panel_y) / float(panel_height)))
+            self.camera.panel_zoom_factor = 1.0 - 0.12 * visible_ratio
+            self.camera.panel_vertical_offset = panel_height * 0.55 * visible_ratio
         self.controls.update(self.train, dt)
         # Do not retain a traction command while the doors are open.
         if self.doors_open and self.train.controller_notch > 0:

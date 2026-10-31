@@ -1,6 +1,6 @@
 """Main game state and scene manager."""
 import pygame
-from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR
+from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR, ASSETS_DIR
 from core.train import Train
 from core.bot import BotTrain
 from core.opposing_bot import OpposingBot
@@ -49,6 +49,17 @@ class Game:
         # The control panel starts hidden; only its small handle remains visible.
         self.control_panel_open = False
         self.control_panel_y = None
+        self.control_panel_images = {}
+        self.control_panel_scaled_cache = {}
+        for image_name in ("speed-menu.png", "door-menu.png"):
+            image_path = ASSETS_DIR / "ui" / "train-ui" / "81-760" / image_name
+            try:
+                image = pygame.image.load(str(image_path)).convert_alpha()
+                # Pure white in these source mockups is the transparent canvas.
+                image.set_colorkey((255, 255, 255))
+                self.control_panel_images[image_name] = image
+            except (pygame.error, OSError):
+                self.control_panel_images[image_name] = None
         # The player's initial position is reserved; AI trains enter every
         # two minutes and are recycled to the line start after the terminus.
         self.bot_trains = []
@@ -283,6 +294,49 @@ class Game:
         panel_rect = pygame.Rect(0, panel_y, width, height - panel_y)
         pygame.draw.rect(surface, (1, 145, 197), panel_rect)
         pygame.draw.line(surface, (0, 69, 105), (0, panel_y), (width, panel_y), 3)
+
+        # The two 81-760 photo panels travel with the sliding background.
+        # Keep their proportions and cache each scaled size to avoid per-frame resampling.
+        content_top = panel_y + handle_height + 8
+        content_bottom = height - 10
+        content_height = max(1, content_bottom - content_top)
+        image_gap = 6
+        slot_height = max(1, (content_height - image_gap) // 2)
+        max_image_width = max(1, int(width * 0.92))
+        for image_name, slot_index, size_factor in (
+            ("speed-menu.png", 0, 1.0),
+            ("door-menu.png", 1, 0.88),
+        ):
+            source_image = self.control_panel_images.get(image_name)
+            if source_image is None:
+                continue
+            target_height = max(1, int(slot_height * size_factor))
+            target_width = min(
+                max_image_width,
+                max(1, round(target_height * source_image.get_width() / source_image.get_height()))
+            )
+            if target_width / source_image.get_width() > target_height / source_image.get_height():
+                target_width = max(1, round(target_height * source_image.get_width() / source_image.get_height()))
+            cache_key = (image_name, target_width, target_height)
+            scaled_image = self.control_panel_scaled_cache.get(cache_key)
+            if scaled_image is None:
+                scale = min(
+                    max_image_width / source_image.get_width(),
+                    target_height / source_image.get_height(),
+                )
+                scaled_size = (
+                    max(1, round(source_image.get_width() * scale)),
+                    max(1, round(source_image.get_height() * scale)),
+                )
+                cache_key = (image_name, *scaled_size)
+                scaled_image = self.control_panel_scaled_cache.get(cache_key)
+                if scaled_image is None:
+                    scaled_image = pygame.transform.smoothscale(source_image, scaled_size)
+                    self.control_panel_scaled_cache[cache_key] = scaled_image
+            slot_y = content_top + slot_index * (slot_height + image_gap)
+            image_x = (width - scaled_image.get_width()) // 2
+            image_y = slot_y + max(0, (slot_height - scaled_image.get_height()) // 2)
+            surface.blit(scaled_image, (image_x, image_y))
 
         handle_rect = pygame.Rect(width // 2 - 48, panel_y, 96, handle_height)
         pygame.draw.rect(surface, (0, 91, 133), handle_rect, border_radius=8)

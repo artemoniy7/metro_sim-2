@@ -46,6 +46,9 @@ class Game:
         self.camera = Camera(viewport_size, zoom=2.8)
         self.elapsed = 0.0
         self.doors_open = False
+        # The control panel starts hidden; only its small handle remains visible.
+        self.control_panel_open = False
+        self.control_panel_y = None
         # The player's initial position is reserved; AI trains enter every
         # two minutes and are recycled to the line start after the terminus.
         self.bot_trains = []
@@ -90,8 +93,21 @@ class Game:
         opposing.train.display_name = "Встречный состав"
         self.opposing_trains.append(opposing)
 
+    def _control_panel_metrics(self, width, height):
+        panel_height = min(height - 36, max(210, int(height * 0.34)))
+        handle_height = 36
+        target_y = height - panel_height if self.control_panel_open else height - handle_height
+        return panel_height, handle_height, target_y
+
+    def _toggle_control_panel(self):
+        self.control_panel_open = not self.control_panel_open
+
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+            self.control_panel_open = True
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+            self.control_panel_open = False
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             pygame.event.post(pygame.event.Event(pygame.QUIT))
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_v:
             # Doors may only be operated while the train is completely stopped.
@@ -115,7 +131,16 @@ class Game:
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 4:
+            if event.button == 1:
+                display = pygame.display.get_surface()
+                if display is not None:
+                    width, height = display.get_size()
+                    if self.control_panel_y is None:
+                        self.control_panel_y = float(height - 36)
+                    handle = pygame.Rect(width // 2 - 48, round(self.control_panel_y), 96, 36)
+                    if handle.collidepoint(event.pos):
+                        self._toggle_control_panel()
+            elif event.button == 4:
                 self.camera.zoom_by(0.15)
             elif event.button == 5:
                 self.camera.zoom_by(-0.15)
@@ -128,6 +153,19 @@ class Game:
 
     def update(self, dt):
         self.elapsed += dt
+        display = pygame.display.get_surface()
+        if display is not None:
+            width, height = display.get_size()
+            _, _, target_y = self._control_panel_metrics(width, height)
+            if self.control_panel_y is None:
+                self.control_panel_y = float(height - 36)
+            # A steady slide takes roughly half a second on a typical display.
+            distance = target_y - self.control_panel_y
+            step = 620.0 * dt
+            if abs(distance) <= step:
+                self.control_panel_y = float(target_y)
+            else:
+                self.control_panel_y += step if distance > 0 else -step
         self.controls.update(self.train, dt)
         # Do not retain a traction command while the doors are open.
         if self.doors_open and self.train.controller_notch > 0:
@@ -227,3 +265,27 @@ class Game:
             stop_door_ring = getattr(self.audio, "stop_door_ring", None)
             if callable(stop_door_ring):
                 stop_door_ring()
+
+        # Sliding placeholder for the future 81-760 cab controls.
+        width, height = surface.get_size()
+        panel_height, handle_height, target_y = self._control_panel_metrics(width, height)
+        if self.control_panel_y is None:
+            self.control_panel_y = float(height - handle_height)
+        panel_y = max(0, min(height, round(self.control_panel_y)))
+        panel_rect = pygame.Rect(0, panel_y, width, height - panel_y)
+        pygame.draw.rect(surface, (1, 145, 197), panel_rect)
+        pygame.draw.line(surface, (0, 69, 105), (0, panel_y), (width, panel_y), 3)
+
+        handle_rect = pygame.Rect(width // 2 - 48, panel_y, 96, handle_height)
+        pygame.draw.rect(surface, (0, 91, 133), handle_rect, border_radius=8)
+        pygame.draw.rect(surface, (190, 225, 238), handle_rect, width=2, border_radius=8)
+        center_x = handle_rect.centerx
+        if self.control_panel_open:
+            arrow = [(center_x - 10, panel_y + 13),
+                     (center_x + 10, panel_y + 13),
+                     (center_x, panel_y + 24)]
+        else:
+            arrow = [(center_x - 10, panel_y + 23),
+                     (center_x + 10, panel_y + 23),
+                     (center_x, panel_y + 12)]
+        pygame.draw.polygon(surface, (245, 250, 252), arrow)

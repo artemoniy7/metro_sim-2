@@ -399,7 +399,10 @@ class Renderer:
         # Draw the lower opposing path over the tunnel backdrop, but keep it
         # inside the enlarged tunnel envelope. The main path is drawn last.
 
-        tunnel_height = max(1, round(5.5 * scale))
+        # Texture resolution changes in small discrete steps instead of every
+        # fractional camera-zoom update. This avoids visible resampling shimmer
+        # while the control-panel camera animation is running.
+        tunnel_height = max(4, round((5.5 * scale) / 4.0) * 4)
         # The main tunnel belongs only to the main track. The opposing track
         # gets its own foreground tunnel overlay after the trains are drawn.
         tunnel_draw_height = tunnel_height
@@ -407,7 +410,11 @@ class Renderer:
             tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
             tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
             if tunnel_key not in self._tunnel_tile_cache:
-                self._tunnel_tile_cache = {tunnel_key: pygame.transform.smoothscale(self.tunnel_image, (tunnel_width, tunnel_draw_height))}
+                self._tunnel_tile_cache[tunnel_key] = pygame.transform.smoothscale(
+                    self.tunnel_image, (tunnel_width, tunnel_draw_height)
+                )
+                if len(self._tunnel_tile_cache) > 48:
+                    self._tunnel_tile_cache.pop(next(iter(self._tunnel_tile_cache)))
             tunnel_tile = self._tunnel_tile_cache[tunnel_key]
             strip_width = 4
             for sx in range(0, width, strip_width):
@@ -426,7 +433,7 @@ class Renderer:
                     pygame.draw.rect(surface, (70, 64, 56),
                                      (sx, track_y - 4, strip_width, 18))
                 elif station_index is not None:
-                    station_height = max(1, round(8.5 * scale))
+                    station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
                     station_texture = self.station_images.get(
                         station_index, self.legacy_station_image
@@ -438,11 +445,11 @@ class Renderer:
                         ))
                         station_key = (id(station_texture), station_width, station_height)
                         if station_key not in self._station_tile_cache:
-                            self._station_tile_cache = {
-                                station_key: pygame.transform.smoothscale(
-                                    station_texture, (station_width, station_height)
-                                )
-                            }
+                            self._station_tile_cache[station_key] = pygame.transform.smoothscale(
+                                station_texture, (station_width, station_height)
+                            )
+                            if len(self._station_tile_cache) > 128:
+                                self._station_tile_cache.pop(next(iter(self._station_tile_cache)))
                         station_tile = self._station_tile_cache[station_key]
                         tile_world_width = station_width / scale
                         tile_x = int(((world_x % tile_world_width) / tile_world_width) * station_width)
@@ -661,7 +668,9 @@ class Renderer:
                         (opposing_tunnel_width, opposing_tunnel_height),
                     )
                     overlay_tile.set_alpha(tunnel_alpha)
-                    self._opposing_tunnel_cache = {overlay_key: overlay_tile}
+                    self._opposing_tunnel_cache[overlay_key] = overlay_tile
+                    if len(self._opposing_tunnel_cache) > 24:
+                        self._opposing_tunnel_cache.pop(next(iter(self._opposing_tunnel_cache)))
                 opposing_tunnel_tile = self._opposing_tunnel_cache[overlay_key]
                 for sx in range(0, width, 4):
                     world_x = camera_x + sx / scale

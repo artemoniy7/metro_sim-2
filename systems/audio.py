@@ -545,7 +545,7 @@ class AudioSystem:
         loop_sound = self.compressor_sounds.get("loop")
         end_sound = self.compressor_sounds.get("end")
 
-        if pressure < 7.0:
+        if pressure < 7.5:
             if not self._compressor_active:
                 self._compressor_active = True
                 self._compressor_starting = start_sound is not None

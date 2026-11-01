@@ -9,9 +9,12 @@ def test_three_current_steps_are_40_65_and_100_percent():
     assert values[1] == values[2] * 0.65
 
 
-def test_electric_brake_switches_off_at_five_kmh():
+def test_electric_brake_switches_off_at_five_kmh_without_unsupported_low_speed_fade():
     brake = ElectrodynamicBrake()
-    assert brake.calculate(60 / 3.6, -3) > brake.calculate(20 / 3.6, -3)
+    at_20 = brake.calculate(20 / 3.6, -3)
+    at_10 = brake.calculate(10 / 3.6, -3)
+    assert brake.calculate(60 / 3.6, -3) > at_20
+    assert at_10 == at_20
     assert brake.calculate(5 / 3.6, -3) == 0.0
 
 
@@ -53,6 +56,22 @@ def test_train_uses_electric_brake_at_line_speed_and_friction_at_low_speed():
     assert train.electrodynamic_brake.mode == "regenerative"
     assert train.pressure_tc == 0.0
     assert train.brake_deceleration > 0.9
+
+
+def test_t3_brakes_from_60_to_7_kmh_in_reference_time_window():
+    from core.train import Train
+
+    train = Train({"wagons": 2, "brake_mps2": 1.0})
+    train.position = 1000.0
+    train.speed = 60 / 3.6
+    train.controller_notch = -3
+    elapsed = 0.0
+    while train.speed * 3.6 > 7.0 and elapsed < 30.0:
+        train.update(0.05, _Line())
+        elapsed += 0.05
+    assert train.speed * 3.6 <= 7.0
+    assert 13.5 <= elapsed <= 14.5
+    assert train.pressure_tc == 0.0 or train.speed * 3.6 <= 7.0
 
 
 def test_train_stopping_distance_is_in_documented_service_brake_range():

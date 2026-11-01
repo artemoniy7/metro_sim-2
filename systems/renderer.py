@@ -779,6 +779,10 @@ class Renderer:
             f"Стояночный тормоз: {parking_label} (P — переключить)",
             True, (255, 185, 120) if pneumatic.parking_brake_applied else (155, 205, 235)
         ), (465, 125))
+        surface.blit(self.small_font.render(
+            f"Торможение: {train.brake_mode_label} | замедление: {train.brake_deceleration:.2f} м/с²",
+            True, (255, 190, 125) if train.brake_deceleration > 0.05 else (155, 205, 235)
+        ), (465, 147))
         controls_text = ("R маршрут   A/← тормоз   D/→ тяга   колесо мыши — масштаб   ←/→ — обзор"
                          if depot_mode else
                          "A/← тормоз   D/→ тяга   SPACE экстр. тормоз   P стояночный   колесо — масштаб")

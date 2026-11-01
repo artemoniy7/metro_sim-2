@@ -18,12 +18,21 @@ class PneumaticSystem:
         self.pressure_door = 5.1
         self.pressure_parking = 7.5
         self.air_spring_pressures = [2.2, 2.2, 2.2, 2.2]
-        self.loaded = bool(loaded)
+        self.load_fraction = 1.0 if loaded else 0.0
         self.compressor_active = False
         self.parking_brake_commanded = False
         self.emergency_vent_active = False
         self._last_tm_pressure = self.pressure_tm
         self._previous_tc = self.pressure_tc
+
+    def set_load_fraction(self, fraction):
+        """Set simulated car loading from empty (0.0) to full (1.0)."""
+        self.load_fraction = max(0.0, min(1.0, float(fraction)))
+
+    @property
+    def air_spring_target_pressure(self):
+        # Training material: 2.2±0.2 empty and 3.8±0.2 loaded.
+        return 2.2 + 1.6 * self.load_fraction
 
     @property
     def brake_applied(self):
@@ -112,3 +121,16 @@ class PneumaticSystem:
         self.pressure_tc = max(0.0, min(self.TC_LOADED_MAX, self.pressure_tc))
         self.pressure_door = max(0.0, min(5.1, self.pressure_door))
         self.pressure_parking = max(0.0, min(8.2, self.pressure_parking))
+
+        # Four independent height-control regulators maintain the target
+        # secondary-suspension pressure as passenger load changes.
+        spring_target = self.air_spring_target_pressure
+        for index, pressure in enumerate(self.air_spring_pressures):
+            if pressure < spring_target:
+                self.air_spring_pressures[index] = min(
+                    spring_target, pressure + 0.55 * dt
+                )
+            elif pressure > spring_target:
+                self.air_spring_pressures[index] = max(
+                    spring_target, pressure - 0.55 * dt
+                )

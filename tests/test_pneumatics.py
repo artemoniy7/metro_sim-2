@@ -42,3 +42,12 @@ def test_parking_brake_is_spring_applied_and_air_released():
 
 def test_door_circuit_is_initially_charged():
     assert PneumaticSystem().doors_available
+
+
+def test_air_suspension_regulators_follow_empty_and_loaded_pressure_targets():
+    system = PneumaticSystem()
+    advance(system, 2.0)
+    assert all(abs(value - 2.2) < 0.01 for value in system.air_spring_pressures)
+    system.set_load_fraction(1.0)
+    advance(system, 3.0)
+    assert all(abs(value - 3.8) < 0.01 for value in system.air_spring_pressures)

@@ -741,7 +741,7 @@ class Renderer:
                 lamp = (235, 240, 245) if depot_route_set else (45, 105, 255)
                 pygame.draw.circle(surface, lamp, (signal_x, signal_y + 13), 7)
                 pygame.draw.circle(surface, (48, 51, 58), (signal_x, signal_y + 34), 6)
-        pygame.draw.rect(surface, (12, 15, 20), (16, 16, 455, 245), border_radius=8)
+        pygame.draw.rect(surface, (12, 15, 20), (16, 16, 790, 245), border_radius=8)
         surface.blit(self.font.render("81-760 «Ока»", True, (240, 240, 240)), (30, 25))
         surface.blit(self.font.render(f"Скорость: {train.speed * 3.6:05.1f} км/ч", True, (110, 220, 160)), (30, 56))
         surface.blit(self.small_font.render(f"АЛС-АРС: {train.als.indication_kmh:.0f} км/ч", True, (245, 205, 105)), (30, 89))
@@ -761,9 +761,27 @@ class Renderer:
         else:
             next_text = "Конечная станция"
         surface.blit(self.small_font.render(next_text, True, (230, 150, 155)), (465, 25))
+        pneumatic = train.pneumatics
+        surface.blit(self.small_font.render(
+            f"НМ: {train.pressure_nm:.2f} кгс/см²   ТМ: {train.pressure_tm:.2f} кгс/см²",
+            True, (155, 205, 235)
+        ), (465, 56))
+        surface.blit(self.small_font.render(
+            f"ТЦ: {train.pressure_tc:.2f} кгс/см²   Компрессор: {'работает' if pneumatic.compressor_active else 'ожидание'}",
+            True, (155, 205, 235)
+        ), (465, 79))
+        surface.blit(self.small_font.render(
+            f"Дверная магистраль: {pneumatic.pressure_door:.2f} кгс/см²",
+            True, (155, 205, 235)
+        ), (465, 102))
+        parking_label = "прижат" if pneumatic.parking_brake_applied else "отпущен"
+        surface.blit(self.small_font.render(
+            f"Стояночный тормоз: {parking_label} (P — переключить)",
+            True, (255, 185, 120) if pneumatic.parking_brake_applied else (155, 205, 235)
+        ), (465, 125))
         controls_text = ("R маршрут   A/← тормоз   D/→ тяга   колесо мыши — масштаб   ←/→ — обзор"
                          if depot_mode else
-                         "A/← тормоз   D/→ тяга   SPACE экстр. тормоз   колесо — масштаб")
+                         "A/← тормоз   D/→ тяга   SPACE экстр. тормоз   P стояночный   колесо — масштаб")
         surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 173))
         if track_network is not None:
             lane_label = track_network.lane_label(train)

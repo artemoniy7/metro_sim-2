@@ -68,6 +68,8 @@ class PneumaticSystem:
             self.compressor_active = True
         if self.compressor_active:
             self.pressure_nm = min(8.0, self.pressure_nm + 0.5 * dt)
+            if self.pressure_nm >= self.NM_COMPRESSOR_OFF:
+                self.compressor_active = False
 
         target_tm = self._target_tm_pressure(controller_notch, emergency)
         if target_tm < self.pressure_tm:

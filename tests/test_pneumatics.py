@@ -1,9 +1,63 @@
+from core.electrodynamic_brake import ElectrodynamicBrake
 from core.pneumatics import PneumaticSystem
 
 
 def advance(system, seconds, **kwargs):
     for _ in range(round(seconds * 10)):
         system.update(0.1, **kwargs)
+
+
+def test_electrodynamic_brake_has_three_documented_current_steps():
+    brake = ElectrodynamicBrake()
+    speed = 60 / 3.6
+    t1 = brake.calculate(speed, -1)
+    t2 = brake.calculate(speed, -2)
+    t3 = brake.calculate(speed, -3)
+    assert round(t1 / t3, 2) == 0.40
+    assert round(t2 / t3, 2) == 0.65
+    assert t3 == brake.max_deceleration
+
+
+def test_electrodynamic_brake_fades_and_switches_off_at_five_kmh():
+    brake = ElectrodynamicBrake()
+    assert brake.calculate(60 / 3.6, -3) > brake.calculate(20 / 3.6, -3)
+    assert brake.calculate(5 / 3.6, -3) == 0.0
+    assert brake.mode == "off"
+
+
+def test_electrodynamic_brake_uses_rheostatic_mode_without_regeneration():
+    brake = ElectrodynamicBrake()
+    assert brake.calculate(40 / 3.6, -3, regeneration_available=False) > 0
+    assert brake.mode == "rheostatic"
+
+
+def test_electric_brake_failure_requests_pneumatic_fallback():
+    system = PneumaticSystem()
+    advance(system, 2.0, service_brake_notch=-3)
+    assert system.pressure_tc > 2.0
+
+
+def test_three_pneumatic_settings_and_load_compensation():
+    empty = PneumaticSystem()
+    loaded = PneumaticSystem()
+    loaded.set_load_fraction(1.0)
+    advance(empty, 3.0, service_brake_notch=-3)
+    advance(loaded, 3.0, service_brake_notch=-3)
+    assert loaded.pressure_tc > empty.pressure_tc
+    assert abs(
+        empty.pressure_tc / empty.max_tc_pressure
+        - loaded.pressure_tc / loaded.max_tc_pressure
+    ) < 0.02
+
+
+def test_anti_skid_releases_only_the_selected_bogie():
+    system = PneumaticSystem()
+    advance(system, 2.0, service_brake_notch=-3)
+    before = system.bogie_tc_pressures[:]
+    system.trigger_anti_skid(0)
+    system.update(0.1, service_brake_notch=-3)
+    assert system.bogie_tc_pressures[0] < before[0]
+    assert system.bogie_tc_pressures[1] == before[1]
 
 
 def test_compressor_cut_in_and_cut_out():

@@ -113,7 +113,11 @@ class BotTrain:
             speed = max(0.0, train.speed)
             # Be conservative: include reaction time and brake build-up, not
             # only the ideal physical stopping distance.
-            effective_brake = max(0.55, train.brake_notches[-1] * 0.75)
+            effective_brake = max(
+                0.55,
+                getattr(getattr(train, "electrodynamic_brake", None),
+                        "max_deceleration", train.brake_notches[-1]) * 0.9,
+            )
             stopping_distance = speed * speed / (2.0 * effective_brake)
             # Account for progressive pneumatic-cylinder pressure build-up.
             braking_threshold = stopping_distance + speed * 4.0 + 28.0

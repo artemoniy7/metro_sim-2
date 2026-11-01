@@ -16,9 +16,9 @@ The uploaded document «Электрическое оборудование 81-7
 - regenerative braking returns energy to the contact network when it can accept it; otherwise the drive uses the braking chopper and resistor (rheostatic braking);
 - the document gives maximum-service electric-braking stopping-distance values of 150 m from 60 km/h and 260 m from 80 km/h.
 
-core/electrodynamic_brake.py implements the three documented current fractions, the 55-to-20 km/h reduction, the 5 km/h cut-out, and the regenerative/rheostatic operating mode. The simulator's conversion from current fraction to deceleration is calibrated at 1.0 m/s² for T3; this is a game calibration against the cited stopping-distance envelope, not a published factory torque/current curve.
+core/electrodynamic_brake.py implements the three documented current fractions, the 55-to-20 km/h reduction, the 5 km/h cut-out, and the regenerative/rheostatic operating mode. The simulator's conversion from current fraction to deceleration is calibrated at 1.12 m/s² for T3; this is a game calibration against the cited stopping-distance envelope, not a published factory torque/current curve.
 
-The source describes the reduction down to 260 A at 20 km/h but does not give the complete low-speed current curve. The 20-to-5 km/h taper is therefore an explicit interpolation in the game model.
+The source describes the reduction down to 260 A at 20 km/h but does not state the maximum current used as the percentage denominator or the complete low-speed current curve. The model assumes 300 A as a calibration reference (so 260 A is about 87%) and interpolates the 20-to-5 km/h taper. These are explicit game assumptions, not quoted factory settings.
 
 ### Pneumatic and friction brake
 

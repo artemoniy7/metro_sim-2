@@ -11,6 +11,9 @@ class BotTrain:
         self.train.is_bot = True
         self.state = "running"
         self.target_station = None
+        # Remember the platform just served so a train that stopped near its
+        # entrance does not immediately select the same station again.
+        self.last_served_station = None
         self.dwell_timer = 0.0
         self.informer_timer = 0.0
         self.informer_started = False
@@ -23,9 +26,28 @@ class BotTrain:
         if self.target_station is not None:
             target_position = float(self.target_station.get("position", 0))
             station_half_length = float(self.target_station.get("length_m", 162.0)) / 2.0
-            # Keep the same target through a small overshoot on the platform.
             if target_position + station_half_length >= self.train.position:
                 return self.target_station
+            self.target_station = None
+
+        # After a dwell, do not target that same platform again while the
+        # train is still within its limits. This matters when a bot enters a
+        # platform before it has reached the station centre (for example,
+        # when it is dispatched close to a station).
+        if self.last_served_station is not None:
+            served_position = float(self.last_served_station.get("position", 0))
+            served_half_length = float(
+                self.last_served_station.get("length_m", 162.0)
+            ) / 2.0
+            if self.train.position <= served_position + served_half_length:
+                return next(
+                    (
+                        station for station in line.stations
+                        if float(station.get("position", 0)) > served_position + 1.0
+                    ),
+                    None,
+                )
+            self.last_served_station = None
 
         for station in line.stations:
             position = float(station.get("position", 0))
@@ -67,8 +89,12 @@ class BotTrain:
                         if callable(close_sound) and sound_volume > 0.01:
                             close_sound(volume=sound_volume)
             if self.dwell_timer <= 0.0 and self.closed_for_departure:
-                self.state = "running"
+                # Mark this platform as served before selecting the next one.
+                # Otherwise a stop near the platform edge can trigger the
+                # dwell condition again forever without the train moving.
+                self.last_served_station = self.target_station
                 self.target_station = None
+                self.state = "running"
                 self.informer_started = False
                 self.informer_timer = 0.0
                 self.closed_for_departure = False

@@ -19,9 +19,11 @@ class ElectrodynamicBrake:
     CURRENT_REDUCTION_START_KMH = 55.0
     CURRENT_REDUCTION_END_KMH = 20.0
     CURRENT_AT_20_KMH = 260.0
+    ASSUMED_MAX_CURRENT_A = 300.0
+    CURRENT_FRACTION_AT_20_KMH = CURRENT_AT_20_KMH / ASSUMED_MAX_CURRENT_A
     # Calibrated against the manual's 60 km/h / 150 m and 80 km/h / 260 m
     # maximum-service stopping-distance values, allowing for jerk ramp-up.
-    MAX_SERVICE_DECELERATION = 1.0
+    MAX_SERVICE_DECELERATION = 1.12
 
     def __init__(self, max_deceleration=None):
         self.max_deceleration = float(
@@ -44,8 +46,10 @@ class ElectrodynamicBrake:
                     - ElectrodynamicBrake.CURRENT_REDUCTION_END_KMH)
             progress = ((speed_kmh - ElectrodynamicBrake.CURRENT_REDUCTION_END_KMH)
                         / span)
-            return 0.52 + 0.48 * progress
-        return 0.52 * speed_kmh / ElectrodynamicBrake.CURRENT_REDUCTION_END_KMH
+            return (ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH
+                    + (1.0 - ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH) * progress)
+        return (ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH * speed_kmh
+                / ElectrodynamicBrake.CURRENT_REDUCTION_END_KMH)
 
     def calculate(self, speed_mps, controller_notch, available=None,
                   regeneration_available=None):

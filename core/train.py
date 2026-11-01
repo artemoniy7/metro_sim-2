@@ -208,10 +208,12 @@ class Train:
         parking_deceleration = self.service_brake * parking_fraction
 
         if self.emergency_brake_active:
-            deceleration = max(self.emergency_brake, friction_deceleration)
+            # Emergency effort is pneumatic and follows actual cylinder build-up;
+            # it is not an instantaneous, pressure-independent deceleration.
+            deceleration = self.emergency_brake * friction_fraction
         else:
             deceleration = ed_deceleration + friction_deceleration
-            deceleration = max(deceleration, parking_deceleration)
+        deceleration = max(deceleration, parking_deceleration)
         self.brake_deceleration = deceleration
 
         if deceleration > 0.0:

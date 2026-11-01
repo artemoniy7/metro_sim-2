@@ -102,13 +102,13 @@ class Train:
     @property
     def brake_mode_label(self):
         if self.emergency_brake_active:
-            return "Экстренное пневматическое"
+            return "Экстр. пневмо"
         if self.electrodynamic_brake.mode == "regenerative":
-            return "Электродинамическое (рекуперация)"
+            return "ЭД: рекуперация"
         if self.electrodynamic_brake.mode == "rheostatic":
-            return "Электродинамическое (реостат)"
+            return "ЭД: реостат"
         if self.pressure_tc > 0.1:
-            return "Пневматическое / удержание"
+            return "Пневмо / удержание"
         return "Отпуск"
 
     def update(self, dt, line):

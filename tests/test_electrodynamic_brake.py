@@ -69,9 +69,13 @@ def test_t3_brakes_from_60_to_7_kmh_in_reference_time_window():
     while train.speed * 3.6 > 7.0 and elapsed < 30.0:
         train.update(0.05, _Line())
         elapsed += 0.05
+        if train.speed * 3.6 > 7.0:
+            assert train.pressure_tc == 0.0
     assert train.speed * 3.6 <= 7.0
     assert 13.5 <= elapsed <= 14.5
-    assert train.pressure_tc == 0.0 or train.speed * 3.6 <= 7.0
+    assert train.pressure_tc == 0.0
+    train.update(0.05, _Line())
+    assert train.pressure_tc > 0.0
 
 
 def test_train_stopping_distance_is_in_documented_service_brake_range():

@@ -55,12 +55,13 @@ class PneumaticSystem:
 
     def _target_tc_pressure(self, notch, emergency):
         if emergency:
-            return self.TC_LOADED_MAX if self.loaded else self.TC_EMPTY_MAX
+            return self.TC_EMPTY_MAX + (self.TC_LOADED_MAX - self.TC_EMPTY_MAX) * self.load_fraction
         if notch >= 0:
             return 0.0
         reduction = max(0.0, self.TM_CHARGED_PRESSURE - self.pressure_tm)
         target = min(self.TC_EMPTY_MAX, reduction * 1.12)
-        return target * (self.TC_LOADED_MAX / self.TC_EMPTY_MAX) if self.loaded else target
+        load_scale = 1.0 + (self.TC_LOADED_MAX / self.TC_EMPTY_MAX - 1.0) * self.load_fraction
+        return target * load_scale
 
     def update(self, dt, controller_notch=0, emergency=False,
                parking_brake_commanded=False):

@@ -95,7 +95,8 @@ class Game:
             pygame.event.post(pygame.event.Event(pygame.QUIT))
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_v:
             # Doors may only be operated while the train is completely stopped.
-            if abs(self.train.speed) < 0.05:
+            if (abs(self.train.speed) < 0.05
+                    and (self.doors_open or self.train.pneumatics.doors_available)):
                 self.doors_open = not self.doors_open
                 self.train.doors_open = self.doors_open
                 play_door_sound = getattr(self.audio, "play_door_sound", None)

@@ -1,7 +1,8 @@
-"""Playable train consist with a notched traction/brake controller."""
+"""Playable train consist with traction, electrodynamic and pneumatic brakes."""
 from core.wagon import Wagon
 from core.als_ars import AlsArs
 from core.pneumatics import PneumaticSystem
+from core.electrodynamic_brake import ElectrodynamicBrake
 
 
 class Train:
@@ -14,26 +15,22 @@ class Train:
         self.service_brake = float(data.get("brake_mps2", 1.15))
         self.emergency_brake = float(data.get("emergency_brake_mps2", 1.4))
         self.jerk_limit = float(data.get("jerk_mps3", 0.45))
-        # Per-notch values are configured per train, in m/s².
+        self.brake_jerk_limit = float(data.get("brake_jerk_mps3", 0.6))
         self.traction_notches = [float(v) for v in data.get(
             "traction_notches_mps2", [0.25, 0.45, 0.68, self.acceleration]
         )]
         self.brake_notches = [float(v) for v in data.get(
-            "brake_notches_mps2", [0.45, 0.75, self.service_brake]
+            "brake_notches_mps2", [0.4, 0.65, 1.0]
         )]
         self.controller_notch = 0  # -3..-1 = T3..T1, 0 = coast, 1..4 = G1..G4
         car_count = max(2, int(data.get("wagons", 8)))
-        # Two cab cars at the ends, with six passenger cars between them.
         self.wagons = [Wagon(self.name, i, is_loco=(i == 0 or i == car_count - 1))
                        for i in range(car_count)]
         self.loco_length_m = float(data.get("loco_length_m", 20.0))
         self.car_length_m = float(data.get("car_length_m", 19.0))
         self.position = 0.0
         self.speed = 0.0
-        # +1 follows the line towards the terminus; -1 runs against it.
         self.direction = 1
-        # Track 1 is the original/main path; adjacent tracks are reached only
-        # through a reserved crossover in TrackNetwork.
         self.track_index = 1
         self.track_change = None
         self.emergency_brake_active = False
@@ -43,8 +40,13 @@ class Train:
         self.OVERSPEED_GRACE_S = 3.6
         self.SPEED_MARGIN_KMH = 1.0
         self.acceleration_state = 0.0
-        # Pneumatic equipment is modeled separately from longitudinal motion.
-        self.pneumatics = PneumaticSystem()
+        self.pneumatics = PneumaticSystem(
+            loaded=bool(data.get("loaded", False))
+        )
+        self.pneumatics.set_load_fraction(float(data.get("load_fraction", 0.0)))
+        self.electrodynamic_brake = ElectrodynamicBrake(
+            data.get("electrodynamic_brake_max_mps2", 1.0)
+        )
         self.parking_brake_active = False
         self._brake_command_timer = 0.0
         self._was_brake_commanded = False
@@ -53,11 +55,12 @@ class Train:
         self.TRACTION_DELAY_AFTER_RELEASE_S = 1.5
         self.doors_open = False
         self.BRAKE_RESPONSE_DELAY_S = float(data.get("brake_response_delay_s", 0.0))
-        # Small rolling/air resistance: noticeable over time, but not a hard brake.
-        self.rolling_resistance = 0.012  # m/s² at low speed
-        self.speed_resistance = 0.00025  # additional m/s² per m/s
+        self.rolling_resistance = 0.012
+        self.speed_resistance = 0.00025
         self.als = AlsArs()
-
+        self.electrodynamic_brake_failed = False
+        self.regeneration_available = True
+        self.brake_deceleration = 0.0
 
     @property
     def pressure_nm(self):
@@ -73,7 +76,7 @@ class Train:
 
     @property
     def brake_applied(self):
-        return self.pneumatics.brake_applied
+        return self.pneumatics.brake_applied or self.brake_deceleration > 0.05
 
     @property
     def consist_length_m(self):
@@ -84,7 +87,6 @@ class Train:
 
     @property
     def occupied_track_indices(self):
-        """Tracks physically occupied while the consist is crossing a switch."""
         if self.track_change:
             return {self.track_change["from"], self.track_change["to"]}
         return {self.track_index}
@@ -97,6 +99,18 @@ class Train:
             return f"G{self.controller_notch}"
         return "0 (перекрыша)"
 
+    @property
+    def brake_mode_label(self):
+        if self.emergency_brake_active:
+            return "Экстренное пневматическое"
+        if self.electrodynamic_brake.mode == "regenerative":
+            return "Электродинамическое (рекуперация)"
+        if self.electrodynamic_brake.mode == "rheostatic":
+            return "Электродинамическое (реостат)"
+        if self.pressure_tc > 0.1:
+            return "Пневматическое / удержание"
+        return "Отпуск"
+
     def update(self, dt, line):
         if dt <= 0:
             return
@@ -107,15 +121,9 @@ class Train:
         limit_kmh = limit * 3.6
         speed_kmh = abs(self.speed) * 3.6
 
-        # Overspeed emergency trip is active in T1 (or when not using
-        # stronger service braking). Selecting T2/T3 suppresses the emergency
-        # trip because the driver is already applying stronger service braking.
         stronger_service_braking = self.controller_notch <= -2
         is_bot = bool(getattr(self, "is_bot", False))
         if is_bot:
-            # AI drivers regulate speed themselves; don't latch the emergency
-            # brake for them. The normal permitted-speed supervision below still
-            # limits speed, and manual emergency braking remains available.
             self.overspeed_timer = 0.0
             self.overspeed_emergency_active = False
         elif stronger_service_braking:
@@ -128,19 +136,16 @@ class Train:
             else:
                 self.overspeed_timer = 0.0
 
-        # Player trains retain emergency protection; AI trains use regular
-        # speed supervision so a brief overspeed cannot permanently immobilize them.
         self.emergency_brake_active = bool(
             self.manual_emergency_brake_active
             or (self.overspeed_emergency_active and not is_bot)
         )
         grade_acceleration = line.path.grade_acceleration(self.position) * self.direction
         resistance = self.rolling_resistance + self.speed_resistance * self.speed
-        # Positive grade acceleration means gravity helps the train move forward.
-        natural_acceleration = grade_acceleration - resistance if self.speed > 0 else grade_acceleration
+        natural_acceleration = (
+            grade_acceleration - resistance if self.speed > 0 else grade_acceleration
+        )
 
-        # Pneumatic brake response is modeled through brake-pipe and
-        # brake-cylinder pressures, with an immediate emergency override.
         brake_commanded = self.emergency_brake_active or self.controller_notch < 0
         if self._was_brake_commanded and not brake_commanded:
             if abs(self.speed) < 0.2 / 3.6:
@@ -149,32 +154,70 @@ class Train:
                 )
             else:
                 self.brake_release_timer = 0.0
-        if brake_commanded:
-            self._brake_command_timer += dt
-        else:
-            self._brake_command_timer = 0.0
+        self._brake_command_timer = (
+            self._brake_command_timer + dt if brake_commanded else 0.0
+        )
         self._was_brake_commanded = brake_commanded
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
+        # The electric brake is the normal service brake. It is available down
+        # to about 5 km/h; below that it is replaced by BУФТ-controlled friction
+        # braking. On electric-brake failure, the pneumatic brake takes over.
+        ed_available = (not self.electrodynamic_brake_failed
+                        and self.electrodynamic_brake.available)
+        ed_deceleration = 0.0
+        if not self.emergency_brake_active:
+            ed_deceleration = self.electrodynamic_brake.calculate(
+                self.speed, self.controller_notch,
+                available=ed_available,
+                regeneration_available=self.regeneration_available,
+            )
+        else:
+            self.electrodynamic_brake.calculate(
+                self.speed, 0, available=False
+            )
+
+        speed_kmh = abs(self.speed) * 3.6
+        low_speed_replacement = (
+            self.controller_notch if self.controller_notch < 0
+            and (speed_kmh <= 7.0 or not ed_available) else 0
+        )
+        hold_brake = (
+            self.speed <= 1.8 / 3.6 and self.controller_notch <= 0
+            and not self.emergency_brake_active and not self.parking_brake_active
+        )
         self.pneumatics.update(
             dt,
             controller_notch=self.controller_notch,
             emergency=self.emergency_brake_active,
             parking_brake_commanded=self.parking_brake_active,
+            service_brake_notch=low_speed_replacement,
+            hold_brake=hold_brake,
         )
 
+        # Pressure is load-compensated by the pneumatic authoring model. The
+        # normalized cylinder pressure therefore maps to a calibrated service
+        # deceleration rather than applying an unscaled force to every load.
+        friction_fraction = (
+            self.pressure_tc / max(0.01, self.pneumatics.max_tc_pressure)
+        )
+        friction_deceleration = self.service_brake * friction_fraction
+        parking_fraction = max(
+            0.0, min(1.0, (6.3 - self.pneumatics.pressure_parking) / 6.3)
+        )
+        parking_deceleration = self.service_brake * parking_fraction
 
-        # Cylinder pressure determines service braking; emergency uses its
-        # configured maximum deceleration independently of cylinder ramping.
-        deceleration = self.pressure_tc * 0.35
         if self.emergency_brake_active:
-            deceleration = self.emergency_brake
-        elif self.pneumatics.parking_brake_applied:
-            deceleration = max(deceleration, self.service_brake)
+            deceleration = max(self.emergency_brake, friction_deceleration)
+        else:
+            deceleration = ed_deceleration + friction_deceleration
+            deceleration = max(deceleration, parking_deceleration)
+        self.brake_deceleration = deceleration
 
         if deceleration > 0.0:
             target_acceleration = -deceleration + grade_acceleration - resistance
-            change = self.jerk_limit * dt
+            jerk = self.brake_jerk_limit if target_acceleration < self.acceleration_state else self.jerk_limit
+            change = jerk * dt
             self.acceleration_state += max(
                 -change, min(change, target_acceleration - self.acceleration_state)
             )
@@ -182,23 +225,18 @@ class Train:
             if self.speed <= 0.0:
                 self.acceleration_state = 0.0
         else:
-            # Supervision brakes automatically if the train exceeds its permitted speed.
             permitted_speed = limit + self.SPEED_MARGIN_KMH / 3.6
             if self.speed > permitted_speed:
                 self.speed = max(permitted_speed, self.speed - self.service_brake * dt)
                 self.acceleration_state = min(0.0, self.acceleration_state)
             else:
                 target_acceleration = natural_acceleration
-                # Traction remains locked until the brake cylinders are fully
-                # exhausted, including after an emergency brake application.
                 traction_released = self.pressure_tc <= 0.01
                 if (self.controller_notch > 0 and traction_released
                         and not self.pneumatics.parking_brake_applied
                         and not self.doors_open and self.brake_release_timer <= 0.0):
                     index = min(len(self.traction_notches) - 1, self.controller_notch - 1)
                     traction_acceleration = self.traction_notches[index]
-                    # Traction fades strongly at high speed. This makes the last
-                    # 10 km/h before top speed take noticeably longer to gain.
                     speed_kmh = self.speed * 3.6
                     high_speed_fade = max(0.0, min(1.0, (speed_kmh - 40.0) / 40.0))
                     traction_acceleration *= 1.0 - 0.92 * high_speed_fade

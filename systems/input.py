@@ -14,6 +14,8 @@ class InputController:
                 train.controller_notch = max(-3, train.controller_notch - 1)
             elif event.key == pygame.K_d:
                 train.controller_notch = min(4, train.controller_notch + 1)
+            elif event.key == pygame.K_p:
+                train.parking_brake_active = not train.parking_brake_active
             elif event.key == pygame.K_b:
                 # Reset the overspeed trip only after stopping, selecting T3,
                 # and acknowledging vigilance with B.

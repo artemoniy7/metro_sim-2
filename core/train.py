@@ -1,6 +1,7 @@
 """Playable train consist with a notched traction/brake controller."""
 from core.wagon import Wagon
 from core.als_ars import AlsArs
+from core.pneumatics import PneumaticSystem
 
 
 class Train:
@@ -42,13 +43,9 @@ class Train:
         self.OVERSPEED_GRACE_S = 3.6
         self.SPEED_MARGIN_KMH = 1.0
         self.acceleration_state = 0.0
-        # Pneumatic brake circuit pressures (kgf/cm²).
-        self.pressure_nm = 7.5  # Main reservoir (compressor recovery below 6.0).
-        self.pressure_tm = 5.0  # Brake pipe: charged in the released state.
-        self.pressure_tc = 0.0  # Brake cylinders: empty when released.
-        # Compatibility flag for systems that still inspect this property.
-        # Braking force itself is calculated from pressure_tc below.
-        self.brake_applied = False
+        # Pneumatic equipment is modeled separately from longitudinal motion.
+        self.pneumatics = PneumaticSystem()
+        self.parking_brake_active = False
         self._brake_command_timer = 0.0
         self._was_brake_commanded = False
         self.brake_release_timer = 0.0
@@ -60,6 +57,23 @@ class Train:
         self.rolling_resistance = 0.012  # m/s² at low speed
         self.speed_resistance = 0.00025  # additional m/s² per m/s
         self.als = AlsArs()
+
+
+    @property
+    def pressure_nm(self):
+        return self.pneumatics.pressure_nm
+
+    @property
+    def pressure_tm(self):
+        return self.pneumatics.pressure_tm
+
+    @property
+    def pressure_tc(self):
+        return self.pneumatics.pressure_tc
+
+    @property
+    def brake_applied(self):
+        return self.pneumatics.brake_applied
 
     @property
     def consist_length_m(self):
@@ -142,62 +156,21 @@ class Train:
         self._was_brake_commanded = brake_commanded
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
-        # Track air usage from the main reservoir as the brake circuit changes.
-        previous_tm_pressure = self.pressure_tm
-        previous_tc_pressure = self.pressure_tc
+        self.pneumatics.update(
+            dt,
+            controller_notch=self.controller_notch,
+            emergency=self.emergency_brake_active,
+            parking_brake_commanded=self.parking_brake_active,
+        )
 
-        # 1. Brake-pipe pressure follows the controller and emergency circuit.
-        if self.controller_notch < 0 or self.emergency_brake_active:
-            target_tm = 0.0 if self.emergency_brake_active else 3.0
-        else:
-            target_tm = 5.0
-
-        pressure_tm_step = 2.0 * dt
-        if self.pressure_tm > target_tm:
-            self.pressure_tm = max(target_tm, self.pressure_tm - pressure_tm_step)
-        elif self.pressure_tm < target_tm:
-            self.pressure_tm = min(target_tm, self.pressure_tm + pressure_tm_step)
-
-        # 2. Cylinder pressure builds only for a service-brake command.
-        if self.emergency_brake_active:
-            # The safety loop applies the emergency pressure immediately.
-            self.pressure_tc = 3.5
-        else:
-            if self.controller_notch < 0 and self.pressure_tm < 4.5:
-                brake_level = min(3, abs(self.controller_notch))
-                target_tc = 2.3 + (brake_level - 1) * 0.6
-            else:
-                target_tc = 0.0
-
-            if self.pressure_tc < target_tc:
-                self.pressure_tc = min(target_tc, self.pressure_tc + 1.5 * dt)
-            elif self.pressure_tc > target_tc:
-                self.pressure_tc = max(target_tc, self.pressure_tc - 1.0 * dt)
-
-        # Filling the brake cylinders and recharging the brake pipe consume
-        # air from the main reservoir. The coefficients are simplified so the
-        # reservoir pressure falls enough to trigger the compressor naturally.
-        cylinder_air_used = max(0.0, self.pressure_tc - previous_tc_pressure)
-        pipe_air_used = max(0.0, self.pressure_tm - previous_tm_pressure)
-        self.pressure_nm -= cylinder_air_used * 2.5 + pipe_air_used * 0.8
-
-        # The compressor starts below 7.0 kgf/cm² and restores the reservoir
-        # towards 8.0 kgf/cm²; AudioSystem plays the matching recordings.
-        if self.pressure_nm < 7.0:
-            self.pressure_nm = min(8.0, self.pressure_nm + 0.5 * dt)
-        elif self.pressure_nm > 8.0:
-            self.pressure_nm = 8.0
-
-        self.pressure_tm = max(0.0, min(5.0, self.pressure_tm))
-        self.pressure_tc = max(0.0, min(3.5, self.pressure_tc))
-        self.pressure_nm = max(0.0, self.pressure_nm)
-        self.brake_applied = self.pressure_tc > 0.1
 
         # Cylinder pressure determines service braking; emergency uses its
         # configured maximum deceleration independently of cylinder ramping.
         deceleration = self.pressure_tc * 0.35
         if self.emergency_brake_active:
             deceleration = self.emergency_brake
+        elif self.pneumatics.parking_brake_applied:
+            deceleration = max(deceleration, self.service_brake)
 
         if deceleration > 0.0:
             target_acceleration = -deceleration + grade_acceleration - resistance
@@ -220,6 +193,7 @@ class Train:
                 # exhausted, including after an emergency brake application.
                 traction_released = self.pressure_tc <= 0.01
                 if (self.controller_notch > 0 and traction_released
+                        and not self.pneumatics.parking_brake_applied
                         and not self.doors_open and self.brake_release_timer <= 0.0):
                     index = min(len(self.traction_notches) - 1, self.controller_notch - 1)
                     traction_acceleration = self.traction_notches[index]

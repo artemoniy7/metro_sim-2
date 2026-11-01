@@ -45,7 +45,7 @@ class Train:
         )
         self.pneumatics.set_load_fraction(float(data.get("load_fraction", 0.0)))
         self.electrodynamic_brake = ElectrodynamicBrake(
-            data.get("electrodynamic_brake_max_mps2", 1.0)
+            data.get("electrodynamic_brake_max_mps2", ElectrodynamicBrake.MAX_SERVICE_DECELERATION)
         )
         self.parking_brake_active = False
         self._brake_command_timer = 0.0

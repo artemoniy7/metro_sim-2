@@ -9,7 +9,10 @@ Document-derived behaviour:
 
 The source gives the current schedule and stopping-distance envelope, but not
 all torque/current calibration constants. The acceleration curve below is a
-game calibration, not a certified vehicle parameter.
+game calibration, not a certified vehicle parameter. In particular, the
+training material does not specify a linear current fade from 20 to 5 km/h;
+the model therefore holds the 20 km/h current floor until the documented
+low-speed cut-out instead of imposing an unsupported loss of braking effort.
 """
 
 
@@ -21,13 +24,14 @@ class ElectrodynamicBrake:
     CURRENT_AT_20_KMH = 260.0
     ASSUMED_MAX_CURRENT_A = 300.0
     CURRENT_FRACTION_AT_20_KMH = CURRENT_AT_20_KMH / ASSUMED_MAX_CURRENT_A
-    # Calibrated against the manual's 60 km/h / 150 m and 80 km/h / 260 m
-    # maximum-service stopping-distance values, allowing for jerk ramp-up.
-    MAX_SERVICE_DECELERATION = 1.12
+    # Game calibration: balances the measured 60 km/h T3 run with the
+    # handbook's approximate 60 km/h stopping-distance envelope.
+    MAX_SERVICE_DECELERATION = 1.22
 
     def __init__(self, max_deceleration=None):
         self.max_deceleration = float(
-            max_deceleration or self.MAX_SERVICE_DECELERATION
+            self.MAX_SERVICE_DECELERATION if max_deceleration is None
+            else max_deceleration
         )
         self.available = True
         self.regeneration_available = True
@@ -48,8 +52,9 @@ class ElectrodynamicBrake:
                         / span)
             return (ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH
                     + (1.0 - ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH) * progress)
-        return (ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH * speed_kmh
-                / ElectrodynamicBrake.CURRENT_REDUCTION_END_KMH)
+        # No source supports a linear fade below 20 km/h. Keep the documented
+        # 260 A floor until the ED cut-out near 5 km/h.
+        return ElectrodynamicBrake.CURRENT_FRACTION_AT_20_KMH
 
     def calculate(self, speed_mps, controller_notch, available=None,
                   regeneration_available=None):

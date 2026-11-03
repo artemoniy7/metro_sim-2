@@ -86,8 +86,21 @@ class MainMenu:
         return self.available_lines[self.line_index] if self.available_lines else (None, None, {})
 
     @property
+    def available_train_options(self):
+        """Implemented train models explicitly assigned to the selected line."""
+        allowed = set(self.selected_line[2].get("available_train_models", []))
+        return [
+            option for option in self.train_options
+            if option[1].get("model_id", option[1].get("name")) in allowed
+        ]
+
+    @property
     def selected_train(self):
-        return self.train_options[self.train_index] if self.train_options else (None, {})
+        options = self.available_train_options
+        if not options:
+            return (None, {})
+        self.train_index = max(0, min(self.train_index, len(options) - 1))
+        return options[self.train_index]
 
     @property
     def selected_start_position(self):
@@ -135,6 +148,7 @@ class MainMenu:
                     self.line_index = index
                     self.start_index = 0
                     self.end_index = max(1, len(self.selected_line[2].get("stations", [])) - 1)
+                    self.train_index = 0
             elif key.startswith("station_"):
                 index = int(key.split("_")[1])
                 if index == self.start_index:
@@ -156,11 +170,14 @@ class MainMenu:
             elif key == "end_next":
                 self.end_index = min(len(self.selected_line[2]["stations"]) - 1, self.end_index + 1)
             elif key.startswith("train_"):
-                self.train_index = int(key.split("_")[1])
+                index = int(key.split("_")[1])
+                if index < len(self.available_train_options):
+                    self.train_index = index
             elif key == "difficulty":
                 self.difficulty = {"Лёгкий": "Обычный", "Обычный": "Сложный", "Сложный": "Лёгкий"}[self.difficulty]
             elif key == "start_game":
-                return "start"
+                if self.available_train_options:
+                    return "start"
             elif key == "volume_down":
                 self.volume = max(0, self.volume - 10)
             elif key == "volume_up":
@@ -273,7 +290,8 @@ class MainMenu:
         self._text(surface, "3. Выбери поезд", self.body, self.MUTED, (int(w*.055), 505))
         train_y = 535
         train_w = min(230, int(w*.19))
-        for i, (train_path, train) in enumerate(self.train_options):
+        line_trains = self.available_train_options
+        for i, (train_path, train) in enumerate(line_trains):
             x = int(w*.055) + i * (train_w + 16)
             rect = pygame.Rect(x, train_y, train_w, 112)
             selected = i == self.train_index
@@ -285,10 +303,14 @@ class MainMenu:
             self._text(surface, f'{train.get("wagons", "?")} ваг.  •  до {train.get("max_speed_kmh", "?")} км/ч',
                        self.small, self.MUTED, (x+14, train_y+87))
             self._add_button(f"train_{i}", rect)
+        if not line_trains:
+            note = line.get("available_train_models_note", "Для этой линии пока не добавлены подходящие модели поездов.")
+            self._text(surface, note, self.small, self.MUTED, (int(w*.055), train_y+18))
         self._button(surface, "difficulty", f"Сложность: {self.difficulty}",
                      pygame.Rect(int(w*.67), 535, 180, 42))
         self._button(surface, "back", "← Назад", pygame.Rect(int(w*.67), 590, 130, 44))
-        self._button(surface, "start_game", "В путь  →", pygame.Rect(int(w*.81), 590, 160, 44), True)
+        self._button(surface, "start_game", "В путь  →", pygame.Rect(int(w*.81), 590, 160, 44), True,
+                     disabled=not line_trains)
 
     def _draw_train(self, surface, model, x, y, width, height):
         image = self.sprites.get((model, "loco"))

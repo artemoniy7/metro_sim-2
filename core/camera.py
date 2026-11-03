@@ -12,6 +12,7 @@ class Camera:
         # Temporary framing adjustments while the control panel is visible.
         self.panel_zoom_factor = 1.0
         self.panel_vertical_offset = 0.0
+        self.cab_swapped = False
 
     @property
     def pixels_per_metre(self):

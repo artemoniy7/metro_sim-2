@@ -41,6 +41,9 @@ class Train:
         self.position = 0.0
         self.speed = 0.0
         self.direction = 1
+        # Player-controlled trains set this to -1/0/+1; AI trains leave it unset.
+        self.reverser_position = None
+        self.active_cab = 0
         self.track_index = 1
         self.track_change = None
         self.emergency_brake_active = False
@@ -248,7 +251,8 @@ class Train:
                 traction_released = self.pressure_tc <= 0.01
                 if (self.controller_notch > 0 and traction_released
                         and not self.pneumatics.parking_brake_applied
-                        and not self.doors_open and self.brake_release_timer <= 0.0):
+                        and not self.doors_open and self.brake_release_timer <= 0.0
+                        and getattr(self, "reverser_position", None) != 0):
                     traction_acceleration = self.traction_system.acceleration(
                         self.controller_notch, self.speed, self.traction_notches
                     )

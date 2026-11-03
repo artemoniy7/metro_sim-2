@@ -47,6 +47,10 @@ class Game:
         self.camera = Camera(viewport_size, zoom=2.8)
         self.elapsed = 0.0
         self.doors_open = False
+        self.selected_door_side = None
+        self.train.reverser_position = 0  # -1 reverse, 0 neutral, +1 forward (relative to active cab)
+        self.train.active_cab = 0
+        self.camera.cab_swapped = False
         # The player's initial position is reserved; AI trains enter every
         # two minutes and are recycled to the line start after the terminus.
         self.bot_trains = []
@@ -91,29 +95,67 @@ class Game:
         opposing.train.display_name = "Встречный состав"
         self.opposing_trains.append(opposing)
 
+    def _sync_reverser_direction(self):
+        selector = int(getattr(self.train, "reverser_position", 0))
+        cab_sign = 1 if self.train.active_cab == 0 else -1
+        if selector:
+            self.train.direction = selector * cab_sign
+        elif self.train.controller_notch > 0:
+            self.train.controller_notch = 0
+
+    def _open_selected_doors(self, side):
+        if self.selected_door_side != side:
+            return
+        if abs(self.train.speed) >= 0.05 or not self.train.pneumatics.doors_available:
+            return
+        if not self.doors_open:
+            self.doors_open = True
+            self.train.doors_open = True
+            play_door_sound = getattr(self.audio, "play_door_sound", None)
+            if callable(play_door_sound):
+                play_door_sound()
+
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             pygame.event.post(pygame.event.Event(pygame.QUIT))
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_v:
-            # Doors may only be operated while the train is completely stopped.
-            if (abs(self.train.speed) < 0.05
-                    and (self.doors_open or self.train.pneumatics.doors_available)):
-                self.doors_open = not self.doors_open
-                self.train.doors_open = self.doors_open
-                play_door_sound = getattr(self.audio, "play_door_sound", None)
-                if callable(play_door_sound):
-                    play_door_sound()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-            toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)
-            if callable(toggle_announcer):
-                toggle_announcer(self.train, self.line)
-        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_q, pygame.K_e):
-            direction = -1 if event.key == pygame.K_q else 1
-            self.track_network.request_lane_change(
-                self.train, direction, ([self.train]
-                                        + [bot.train for bot in self.bot_trains]
-                                        + [bot.train for bot in self.opposing_trains])
-            )
+        elif event.type == pygame.KEYDOWN:
+            mods = getattr(event, "mod", pygame.key.get_mods())
+            shift = bool(mods & pygame.KMOD_SHIFT)
+            if shift and event.key == pygame.K_a:
+                self.selected_door_side = "left"
+            elif shift and event.key == pygame.K_d:
+                self.selected_door_side = "right"
+            elif event.key == pygame.K_a and not shift:
+                self._open_selected_doors("left")
+            elif event.key == pygame.K_d and not shift:
+                self._open_selected_doors("right")
+            elif event.key == pygame.K_v:
+                if self.doors_open:
+                    self.doors_open = False
+                    self.train.doors_open = False
+                    play_door_sound = getattr(self.audio, "play_door_sound", None)
+                    if callable(play_door_sound):
+                        play_door_sound()
+            elif event.key == pygame.K_0:
+                if abs(self.train.speed) < 0.05 and not self.doors_open:
+                    self.train.active_cab = 1 - self.train.active_cab
+                    self.camera.cab_swapped = bool(self.train.active_cab)
+                    self._sync_reverser_direction()
+            elif event.key == pygame.K_i:
+                toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)
+                if callable(toggle_announcer):
+                    toggle_announcer(self.train, self.line)
+            elif event.key in (pygame.K_q, pygame.K_e):
+                direction = -1 if event.key == pygame.K_q else 1
+                self.track_network.request_lane_change(
+                    self.train, direction, ([self.train]
+                                            + [bot.train for bot in self.bot_trains]
+                                            + [bot.train for bot in self.opposing_trains])
+                )
+            elif event.key == pygame.K_LEFT:
+                self.camera.pan(-1, self.train)
+            elif event.key == pygame.K_RIGHT:
+                self.camera.pan(1, self.train)
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)
         elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -121,12 +163,9 @@ class Game:
                 self.camera.zoom_by(0.15)
             elif event.button == 5:
                 self.camera.zoom_by(-0.15)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-            self.camera.pan(-1, self.train)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-            self.camera.pan(1, self.train)
 
         self.controls.handle_event(event, self.train)
+        self._sync_reverser_direction()
 
     def _is_train_in_tunnel(self):
         position = float(self.train.position)
@@ -229,6 +268,7 @@ class Game:
             self.camera.focus_screen_x = viewport_size[0] * 0.36
             self.camera.follow(self.train, self.line.path.total_length)
         surface.fill(BACKGROUND_COLOR)
+        self.renderer.selected_door_side = self.selected_door_side
         self.renderer.draw_scene(
             surface, self.line, self.train, self.camera, self.elapsed,
             doors_open=self.doors_open,

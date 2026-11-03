@@ -152,6 +152,10 @@ class Game:
                                             + [bot.train for bot in self.bot_trains]
                                             + [bot.train for bot in self.opposing_trains])
                 )
+            elif event.key == pygame.K_LEFT:
+                self.camera.pan(-1, self.train)
+            elif event.key == pygame.K_RIGHT:
+                self.camera.pan(1, self.train)
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)
         elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -159,10 +163,6 @@ class Game:
                 self.camera.zoom_by(0.15)
             elif event.button == 5:
                 self.camera.zoom_by(-0.15)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-            self.camera.pan(-1, self.train)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-            self.camera.pan(1, self.train)
 
         self.controls.handle_event(event, self.train)
         self._sync_reverser_direction()

@@ -13,6 +13,7 @@ class Train:
     TRACTION_SYSTEM_CLASS = KATP2Traction
     ED_TO_PNEUMATIC_SPEED_KMH = 7.0
     PRESSURE_DISPLAY_UNIT = "кгс/см²"
+    PARKING_BRAKE_RELEASE_PRESSURE = 6.3
 
     def __init__(self, data=None):
         data = data or {}
@@ -211,8 +212,9 @@ class Train:
             self.pressure_tc / max(0.01, self.pneumatics.max_tc_pressure)
         )
         friction_deceleration = self.service_brake * friction_fraction
+        parking_threshold = max(0.01, float(self.PARKING_BRAKE_RELEASE_PRESSURE))
         parking_fraction = max(
-            0.0, min(1.0, (6.3 - self.pneumatics.pressure_parking) / 6.3)
+            0.0, min(1.0, (parking_threshold - self.pneumatics.pressure_parking) / parking_threshold)
         )
         parking_deceleration = self.service_brake * parking_fraction
 

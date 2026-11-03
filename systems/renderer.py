@@ -1,4 +1,4 @@
-"""Side-on sprite renderer for the 81-760 train and track."""
+"""Side-on sprite renderer with per-model vehicle profiles."""
 from pathlib import Path
 import pygame
 from settings import ASSETS_DIR
@@ -71,6 +71,7 @@ class Renderer:
         self.door_animation_supported = bool(profile.DOOR_ANIMATION_SUPPORTED)
         self.train_model_label = f"{profile.TRAIN_MODEL_ID} {profile.DISPLAY_NAME}"
         self._train_model_id = model_id
+
     def configure_line_station_sprites(self, line_id):
         """Load station textures only from the selected line's asset folder."""
         line_id = str(line_id or "")

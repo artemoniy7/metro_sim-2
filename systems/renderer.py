@@ -455,6 +455,11 @@ class Renderer:
         # The main tunnel belongs only to the main track. The opposing track
         # gets its own foreground tunnel overlay after the trains are drawn.
         tunnel_draw_height = tunnel_height
+        player_station_index = next((
+            index for index, station in enumerate(line.stations)
+            if abs(float(train.position) - float(station.get("position", 0.0)))
+            <= float(station.get("length_m", 162)) / 2
+        ), None)
         if self.tunnel_image is not None:
             tunnel_width = max(1, round(tunnel_draw_height * self.tunnel_image.get_width() / self.tunnel_image.get_height()))
             tunnel_key = (id(self.tunnel_image), tunnel_width, tunnel_draw_height)
@@ -487,8 +492,15 @@ class Renderer:
                     station_wall_top = self._station_wall_top(
                         track_y, station_height, station_bottom_extra, self.cab_mirror
                     )
+                    # At the station occupied by the train, show the adjacent
+                    # station wall in the direction of the newly selected cab.
+                    wall_station_index = station_index
+                    if station_index == player_station_index:
+                        adjacent_index = station_index + (-1 if self.cab_mirror else 1)
+                        if 0 <= adjacent_index < len(line.stations):
+                            wall_station_index = adjacent_index
                     station_texture = self.station_images.get(
-                        station_index, self.legacy_station_image
+                        wall_station_index, self.legacy_station_image
                     )
                     if station_texture is not None:
                         station_width = max(1, round(
@@ -597,7 +609,9 @@ class Renderer:
         car_width = max(1, round(train.car_length_m * scale))
         loco_scaled = self._scaled_sprite(self.loco_image, loco_width)
         loco_height = loco_scaled.get_height() if loco_scaled is not None else 48
-        reverse_player = getattr(train, "direction", 1) < 0
+        # The active cab determines which physical end leads the consist.
+        # Reversing the reverser changes travel direction, not wagon order.
+        reverse_player = getattr(train, "active_cab", 0) == 1
         player_wagons = reversed(train.wagons) if reverse_player else train.wagons
         vehicle_x = (loco_x + (train.consist_length_m - train.loco_length_m) * scale
                      if reverse_player else loco_x)

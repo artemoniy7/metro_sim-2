@@ -30,7 +30,13 @@ def get_train_model_class(model_id):
 def create_train(data=None):
     """Build a train using the adapter matching its data model ID."""
     config = dict(data or {})
-    model_id = config.get("model_id") or config.get("name") or "81-760"
+    configured_id = config.get("model_id")
+    legacy_name = config.get("name")
+    if configured_id and legacy_name and str(configured_id) != str(legacy_name):
+        raise ValueError(
+            f"Train config model_id {configured_id!r} does not match name {legacy_name!r}"
+        )
+    model_id = configured_id or legacy_name or "81-760"
     model_class = get_train_model_class(model_id)
     train = model_class(config)
     train.model_id = model_class.model_id

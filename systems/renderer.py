@@ -216,10 +216,15 @@ class Renderer:
 
     @staticmethod
     def _station_wall_top(track_y, station_height, bottom_extra, mirrored):
-        """Place the station wall above or below the rails with the active cab."""
+        """Anchor the wall edge nearest the track to the rail line.
+
+        Cab 1 sees the wall above the rails (its bottom edge is above the
+        railhead). Cab 2 sees it on the opposite side (its top edge is below
+        the railhead). The image must not straddle the track in either view.
+        """
         if mirrored:
-            return track_y - station_height + bottom_extra
-        return track_y - bottom_extra
+            return track_y + bottom_extra
+        return track_y - station_height - bottom_extra
 
     def _lane_offset_pixels(self, lane, scale):
         # Track spacing is stored in metres, so every lane follows camera zoom.

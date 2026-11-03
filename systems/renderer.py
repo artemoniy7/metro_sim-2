@@ -218,8 +218,8 @@ class Renderer:
     def _station_wall_top(track_y, station_height, bottom_extra, mirrored):
         """Place the station wall above or below the rails with the active cab."""
         if mirrored:
-            return track_y - bottom_extra
-        return track_y - station_height + bottom_extra
+            return track_y - station_height + bottom_extra
+        return track_y - bottom_extra
 
     def _lane_offset_pixels(self, lane, scale):
         # Track spacing is stored in metres, so every lane follows camera zoom.
@@ -247,10 +247,7 @@ class Renderer:
             rail_side = tuple(lane.get("rail_side", (76, 83, 93)))
             sleeper_color = tuple(lane.get("sleeper", (88, 83, 76)))
             ballast = tuple(lane.get("ballast", (39, 43, 51)))
-            previous = None
-            for sx in range(0, width, 4):
-                sy = rail_y_at(sx) + offset
-                if previous is not None:
+            previous = None            for sx in range(0, width, 4):                sy = rail_y_at(sx) + offset                if previous is not None:
                     px, py = previous
                     pygame.draw.polygon(surface, ballast, [
                         (px, py + 8), (sx, sy + 8),
@@ -455,9 +452,17 @@ class Renderer:
         # The main tunnel belongs only to the main track. The opposing track
         # gets its own foreground tunnel overlay after the trains are drawn.
         tunnel_draw_height = tunnel_height
+        # train.position is anchored to the first (index 0) cab. When the
+        # second cab is selected, its station position is one consist length
+        # behind that reference; use the active cab to identify the station.
+        player_station_position = float(train.position)
+        if self.cab_mirror:
+            player_station_position -= max(
+                0.0, float(train.consist_length_m) - float(train.loco_length_m)
+            )
         player_station_index = next((
             index for index, station in enumerate(line.stations)
-            if abs(float(train.position) - float(station.get("position", 0.0)))
+            if abs(player_station_position - float(station.get("position", 0.0)))
             <= float(station.get("length_m", 162)) / 2
         ), None)
         if self.tunnel_image is not None:
@@ -490,15 +495,12 @@ class Renderer:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
                     station_wall_top = self._station_wall_top(
-                        track_y, station_height, station_bottom_extra, self.cab_mirror
-                    )
-                    # At the station occupied by the train, show the adjacent
-                    # station wall in the direction of the newly selected cab.
+                        track_y, station_height, station_bottom_extra, self.cab_mirror                    )
+                    # At the station occupied by the train, show the adjacent                    # station wall in the direction of the newly selected cab.
                     wall_station_index = station_index
                     if station_index == player_station_index:
                         adjacent_index = station_index + (-1 if self.cab_mirror else 1)
-                        if 0 <= adjacent_index < len(line.stations):
-                            wall_station_index = adjacent_index
+                        if 0 <= adjacent_index < len(line.stations):                            wall_station_index = adjacent_index
                     station_texture = self.station_images.get(
                         wall_station_index, self.legacy_station_image
                     )
@@ -607,13 +609,19 @@ class Renderer:
         loco_x = (line.path.total_length - train.position - train.loco_length_m - camera_x) * scale
         loco_width = max(1, round(train.loco_length_m * scale))
         car_width = max(1, round(train.car_length_m * scale))
+        # Build the consist width from the same rounded sprite widths used
+        # below. Rounding the metre total separately creates a small gap or
+        # overlap between the cars and the rear locomotive after cab reversal.
+        consist_width = (
+            loco_width * 2 + max(0, len(train.wagons) - 2) * car_width
+        )
         loco_scaled = self._scaled_sprite(self.loco_image, loco_width)
         loco_height = loco_scaled.get_height() if loco_scaled is not None else 48
         # The active cab determines which physical end leads the consist.
         # Reversing the reverser changes travel direction, not wagon order.
         reverse_player = getattr(train, "active_cab", 0) == 1
         player_wagons = reversed(train.wagons) if reverse_player else train.wagons
-        vehicle_x = (loco_x + (train.consist_length_m - train.loco_length_m) * scale
+        vehicle_x = (loco_x + consist_width - loco_width
                      if reverse_player else loco_x)
         travelled = 0.0
         for wagon in player_wagons:
@@ -636,8 +644,9 @@ class Renderer:
                     )
                     center_x = vehicle_x + vehicle_width / 2
                     wagon_position = (
-                        train.position + max(0.0, train.consist_length_m - travelled
-                                             - vehicle_width / scale)
+                        train.position - max(
+                            0.0, train.consist_length_m - train.loco_length_m
+                        ) + travelled
                         if reverse_player else
                         max(0.0, train.position - travelled)
                     )
@@ -648,8 +657,9 @@ class Renderer:
                 else:
                     center_x = vehicle_x + vehicle_width / 2
                     wagon_position = (
-                        train.position + max(0.0, train.consist_length_m - travelled
-                                             - vehicle_width / scale)
+                        train.position - max(
+                            0.0, train.consist_length_m - train.loco_length_m
+                        ) + travelled
                         if reverse_player else
                         max(0.0, train.position - travelled)
                     )
@@ -733,22 +743,7 @@ class Renderer:
                     train, "occupied_track_indices", {getattr(train, "track_index", track_network.main_lane)}
                 ))
                 tunnel_alpha = 255 if opposing_lane_index in occupied_tracks else 112
-                opposing_offset = self._lane_offset_pixels(
-                    track_network.lanes[opposing_lane_index], scale
-                )
-                opposing_tunnel_height = tunnel_height
-                opposing_tunnel_width = max(1, round(
-                    opposing_tunnel_height * self.tunnel_image.get_width()
-                    / self.tunnel_image.get_height()
-                ))
-                overlay_key = (
-                    id(self.tunnel_image), opposing_tunnel_width,
-                    opposing_tunnel_height, tunnel_alpha,
-                )
-                if overlay_key not in self._opposing_tunnel_cache:
-                    overlay_tile = pygame.transform.smoothscale(
-                        self.tunnel_image,
-                        (opposing_tunnel_width, opposing_tunnel_height),
+                opposing_offset = self._lane_offset_pixels(                        (opposing_tunnel_width, opposing_tunnel_height),
                     )
                     overlay_tile.set_alpha(tunnel_alpha)
                     self._opposing_tunnel_cache[overlay_key] = overlay_tile

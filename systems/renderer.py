@@ -2,6 +2,15 @@
 from pathlib import Path
 import pygame
 from settings import ASSETS_DIR
+from core.train_models.oka import profile as oka_profile
+from core.train_models.nomernoy import profile as nomernoy_profile
+from core.train_models.rusich import profile as rusich_profile
+
+TRAIN_RENDER_PROFILES = {
+    "81-760": oka_profile,
+    "81-717": nomernoy_profile,
+    "81-740": rusich_profile,
+}
 
 
 class Renderer:
@@ -9,10 +18,10 @@ class Renderer:
         pygame.font.init()
         self.font = pygame.font.Font(None, 28)
         self.small_font = pygame.font.Font(None, 21)
-        self.loco_image = self._load_sprite(ASSETS_DIR / "trains" / "81-760" / "81-760-loco.png")
-        self.car_image = self._load_sprite(ASSETS_DIR / "trains" / "81-760" / "81-760-car.png")
-        self.door_left_image = self._load_sprite(ASSETS_DIR / "trains" / "81-760" / "81-760-door-left.png")
-        self.door_right_image = self._load_sprite(ASSETS_DIR / "trains" / "81-760" / "81-760-door-right.png")
+        self._train_model_id = None
+        self.train_model_label = "81-760 Ока"
+        self.door_animation_supported = True
+        self.configure_train_model("81-760")
         self.door_open_amount = 0.0
         self.door_indicator_phase = 0.0
         self.tunnel_image = self._load_sprite(ASSETS_DIR / "track" / "tunnel.jpg")
@@ -45,6 +54,23 @@ class Renderer:
         self._tunnel_tile_cache = {}
         self._opposing_tunnel_cache = {}
 
+    def configure_train_model(self, train_or_model_id):
+        """Load only the selected model's sprites; never borrow another model's art."""
+        model_id = getattr(train_or_model_id, "model_id", train_or_model_id)
+        model_id = str(model_id or "81-760")
+        if model_id == self._train_model_id:
+            return
+        profile = TRAIN_RENDER_PROFILES.get(model_id)
+        if profile is None:
+            raise ValueError(f"No renderer profile registered for train model {model_id!r}")
+        train_dir = ASSETS_DIR / "trains" / profile.ASSET_DIRECTORY
+        self.loco_image = self._load_sprite(train_dir / profile.SPRITE_FILES["loco"])
+        self.car_image = self._load_sprite(train_dir / profile.SPRITE_FILES["car"])
+        self.door_left_image = self._load_sprite(train_dir / profile.SPRITE_FILES["door_left"])
+        self.door_right_image = self._load_sprite(train_dir / profile.SPRITE_FILES["door_right"])
+        self.door_animation_supported = bool(profile.DOOR_ANIMATION_SUPPORTED)
+        self.train_model_label = f"{profile.TRAIN_MODEL_ID} {profile.DISPLAY_NAME}"
+        self._train_model_id = model_id
     def configure_line_station_sprites(self, line_id):
         """Load station textures only from the selected line's asset folder."""
         line_id = str(line_id or "")
@@ -742,7 +768,7 @@ class Renderer:
                 pygame.draw.circle(surface, lamp, (signal_x, signal_y + 13), 7)
                 pygame.draw.circle(surface, (48, 51, 58), (signal_x, signal_y + 34), 6)
         pygame.draw.rect(surface, (12, 15, 20), (16, 16, 790, 245), border_radius=8)
-        surface.blit(self.font.render("81-760 «Ока»", True, (240, 240, 240)), (30, 25))
+        surface.blit(self.font.render(self.train_model_label, True, (240, 240, 240)), (30, 25))
         surface.blit(self.font.render(f"Скорость: {train.speed * 3.6:05.1f} км/ч", True, (110, 220, 160)), (30, 56))
         surface.blit(self.small_font.render(f"АЛС-АРС: {train.als.indication_kmh:.0f} км/ч", True, (245, 205, 105)), (30, 89))
         surface.blit(self.small_font.render(f"Свободно блоков: {train.als.free_blocks_ahead}", True, (170, 195, 215)), (30, 108))

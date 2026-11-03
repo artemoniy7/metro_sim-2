@@ -214,6 +214,13 @@ class Renderer:
         return (0.45 * math.sin(world_x / 85.0)
                 + 0.18 * math.sin(world_x / 38.0 + 0.8))
 
+    @staticmethod
+    def _station_wall_top(track_y, station_height, bottom_extra, mirrored):
+        """Place the station wall above or below the rails with the active cab."""
+        if mirrored:
+            return track_y - bottom_extra
+        return track_y - station_height + bottom_extra
+
     def _lane_offset_pixels(self, lane, scale):
         # Track spacing is stored in metres, so every lane follows camera zoom.
         # Legacy offset_px values are converted using the old default scale
@@ -477,9 +484,8 @@ class Renderer:
                 elif station_index is not None:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
-                    station_wall_top = (
-                        track_y - station_bottom_extra if self.cab_mirror
-                        else track_y - station_height + station_bottom_extra
+                    station_wall_top = self._station_wall_top(
+                        track_y, station_height, station_bottom_extra, self.cab_mirror
                     )
                     station_texture = self.station_images.get(
                         station_index, self.legacy_station_image

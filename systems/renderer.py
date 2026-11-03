@@ -53,6 +53,7 @@ class Renderer:
         self.last_render_time = None
         self._tunnel_tile_cache = {}
         self._opposing_tunnel_cache = {}
+        self.cab_mirror = False
 
     def configure_train_model(self, train_or_model_id):
         """Load only the selected model's sprites; never borrow another model's art."""
@@ -211,15 +212,15 @@ class Renderer:
         return (0.45 * math.sin(world_x / 85.0)
                 + 0.18 * math.sin(world_x / 38.0 + 0.8))
 
-    @staticmethod
-    def _lane_offset_pixels(lane, scale):
+    def _lane_offset_pixels(self, lane, scale):
         # Track spacing is stored in metres, so every lane follows camera zoom.
         # Legacy offset_px values are converted using the old default scale
         # (10 px/m * zoom 2.8) to preserve the previous default composition.
         offset_m = lane.get("offset_m")
         if offset_m is None:
             offset_m = float(lane.get("offset_px", 0.0)) / 28.0
-        return float(offset_m) * scale
+        mirror = -1.0 if self.cab_mirror else 1.0
+        return float(offset_m) * scale * mirror
 
     def _draw_parallel_tracks(self, surface, line, camera_x, scale, rail_y_at, network):
         """Draw parallel paths with world-space spacing, behind the tunnel shell."""
@@ -363,6 +364,7 @@ class Renderer:
         scale = camera.pixels_per_metre
         base_track_y = int(height * 0.79 - camera.panel_vertical_offset)
         camera_x = camera.x
+        self.cab_mirror = bool(getattr(camera, "cab_swapped", False))
 
         def rail_y_at(screen_x):
             world_x = camera_x + screen_x / scale
@@ -804,17 +806,27 @@ class Renderer:
         ), (465, 102))
         parking_label = "прижат" if pneumatic.parking_brake_applied else "отпущен"
         surface.blit(self.small_font.render(
-            f"Стояночный тормоз: {parking_label} (P — переключить)",
+            f"Стояночный тормоз: {parking_label} (K — переключить)",
             True, (255, 185, 120) if pneumatic.parking_brake_applied else (155, 205, 235)
         ), (465, 125))
         surface.blit(self.small_font.render(
             f"Торможение: {train.brake_mode_label} | замедление: {train.brake_deceleration:.2f} м/с²",
             True, (255, 190, 125) if train.brake_deceleration > 0.05 else (155, 205, 235)
         ), (465, 147))
-        controls_text = ("R маршрут   A/← тормоз   D/→ тяга   колесо мыши — масштаб   ←/→ — обзор"
-                         if depot_mode else
-                         "A/← тормоз   D/→ тяга   SPACE экстр. тормоз   P стояночный   колесо — масштаб")
-        surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 173))
+        reverser_label = {-1: "НАЗАД", 0: "НЕЙТРАЛЬ", 1: "ВПЕРЁД"}.get(
+            int(getattr(train, "reverser_position", 0)), "—"
+        )
+        cab_label = "2" if getattr(train, "active_cab", 0) else "1"
+        door_side = {"left": "ЛЕВЫЕ", "right": "ПРАВЫЕ"}.get(
+            getattr(self, "selected_door_side", None), "НЕ ВЫБРАНЫ"
+        )
+        controls_text = ("W/S контроллер   Shift+A/D выбор дверей   A/D открыть   V закрыть"
+                         "   0 кабина   P/O реверс   I объявления   колесо — масштаб")
+        surface.blit(self.small_font.render(
+            f"Кабина {cab_label} | Реверс: {reverser_label} | Двери: {door_side}",
+            True, (205, 210, 218)
+        ), (30, 173))
+        surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 196))
         if track_network is not None:
             lane_label = track_network.lane_label(train)
             surface.blit(self.small_font.render(

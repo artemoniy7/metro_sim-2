@@ -11,14 +11,34 @@ class ProvisionalPneumaticSystem:
     def __init__(self, loaded=False):
         self.pressure_nm = 1.0
         self.pressure_tm = 0.9
-        self.pressure_tc = 0.0
+        self._pressure_tc = 0.0
         self.max_tc_pressure = 1.0
+        self.bogie_tc_pressures = [0.0, 0.0]
+        self.air_spring_pressures = [0.0, 0.0, 0.0, 0.0]
+        self.anti_skid_timers = [0.0, 0.0]
         self.pressure_door = 1.0
         self.pressure_parking = 1.0
         self.compressor_active = False
         self.parking_brake_commanded = False
         self.emergency_vent_active = False
         self.load_fraction = 1.0 if loaded else 0.0
+
+    @property
+    def pressure_tc(self):
+        return self._pressure_tc
+
+    @pressure_tc.setter
+    def pressure_tc(self, value):
+        self._pressure_tc = max(0.0, min(self.max_tc_pressure, float(value)))
+        self.bogie_tc_pressures = [self._pressure_tc, self._pressure_tc]
+
+    @property
+    def anti_skid_active(self):
+        return any(timer > 0.0 for timer in self.anti_skid_timers)
+
+    def trigger_anti_skid(self, bogie_index, duration=0.35):
+        index = max(0, min(1, int(bogie_index)))
+        self.anti_skid_timers[index] = max(self.anti_skid_timers[index], max(0.05, float(duration)))
 
     @property
     def brake_applied(self):

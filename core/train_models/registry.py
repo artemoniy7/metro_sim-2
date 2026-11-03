@@ -7,11 +7,13 @@ vehicle model.
 from core.train_models.model_81_717 import Train81717
 from core.train_models.model_81_740 import Train81740
 from core.train_models.model_81_760 import Train81760
+from core.train_models.model_81_777 import Train81777
 
 TRAIN_MODEL_CLASSES = {
     Train81717.model_id: Train81717,
     Train81740.model_id: Train81740,
     Train81760.model_id: Train81760,
+    Train81777.model_id: Train81777,
 }
 
 

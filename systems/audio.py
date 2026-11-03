@@ -51,7 +51,7 @@ class AudioSystem:
         self.joint_channels = []
         self.engine_sounds = []
         self.engine_channels = []
-        self._engine_volumes = [0.0, 0.0, 0.0, 0.0, 0.0]
+        self._engine_volumes = [0.0, 0.0, 0.0]
         self._traction_high_sound = None
         self._chopper_sound = None
         self._chopper_was_active = False
@@ -120,8 +120,6 @@ class AudioSystem:
                 self._load_engine_sound(engine_dir, "engine_rusich.wav", (72.0, 2.4, 0.35)),
                 self._load_engine_sound(engine_dir, "async.wav", (95.0, 3.1, 0.65)),
                 self._load_engine_sound(engine_dir, "engine_loud_new2_clean.wav", (145.0, 4.0, 0.8)),
-                self._load_engine_sound(engine_dir, "engine_loud_new2.wav", (165.0, 4.4, 0.8)),
-                self._load_engine_sound(engine_dir, "inverter_1000.wav", (110.0, 3.8, 0.55)),
             ]
             for attribute, filename in (
                 ("_traction_high_sound", "engine_loud_new2_clean_high.wav"),
@@ -134,11 +132,11 @@ class AudioSystem:
 
             # Give each sound category its own channels. Track-joint sounds
             # must never steal a channel from the motor, brakes, or announcements.
-            pygame.mixer.set_num_channels(max(40, pygame.mixer.get_num_channels()))
+            pygame.mixer.set_num_channels(max(36, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
             self.rolling_channels = [pygame.mixer.Channel(i) for i in range(3)]
-            self.engine_channels = [pygame.mixer.Channel(i) for i in (3, 4, 5, 36, 37)]
-            self._extra_engine_channels = [pygame.mixer.Channel(38), pygame.mixer.Channel(39)]
+            self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 6)]
+            self._extra_engine_channels = [pygame.mixer.Channel(34), pygame.mixer.Channel(35)]
             # Keep both brake channels reserved from automatic joint-sound playback.
             self.brake_channel = pygame.mixer.Channel(6)
             self.brake_channel_alt = pygame.mixer.Channel(7)
@@ -836,9 +834,7 @@ class AudioSystem:
         speed_weights = (
             max(0.0, 1.0 - speed_kmh / 22.0),
             1.0 - self._fade_in(speed_kmh, 25.0, 40.0),
-            self._fade_in(speed_kmh, 18.0, 32.0) * (1.0 - self._fade_in(speed_kmh, 65.0, 78.0)),
-            self._fade_in(speed_kmh, 38.0, 52.0),
-            self._fade_in(speed_kmh, 12.0, 28.0) * (1.0 - self._fade_in(speed_kmh, 55.0, 68.0)),
+            self._fade_in(speed_kmh, 30.0, 48.0),
         )
         smoothing = min(1.0, max(0.0, dt) * 3.5)
         for index, (sound, channel, weight) in enumerate(zip(

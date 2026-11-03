@@ -37,9 +37,9 @@ class TrackNetworkTests(unittest.TestCase):
         })
 
     def test_lane_spacing_is_measured_in_world_metres(self):
+        self.assertEqual(len(self.network.lanes), 2)
         self.assertAlmostEqual(self.network.lane_offset_for_index(0), -3.43)
         self.assertAlmostEqual(self.network.lane_offset_for_index(1), 0.0)
-        self.assertAlmostEqual(self.network.lane_offset_for_index(2), 3.43)
 
     def test_change_requires_a_nearby_switch(self):
         train = FakeTrain(100)

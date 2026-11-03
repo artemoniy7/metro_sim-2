@@ -4,10 +4,11 @@ class TrackNetwork:
         data = data or {}
         self.line = line
         self.main_lane = int(data.get("main_lane", 1))
+        # Default layout has exactly two parallel tracks. Lines with a
+        # dedicated track file can provide their own labels and directions.
         self.lanes = list(data.get("lanes", [
-            {"id": "left", "label": "Путь I", "offset_m": -3.43},
+            {"id": "opposing", "label": "Встречный путь", "offset_m": -3.43},
             {"id": "main", "label": "Главный путь", "offset_m": 0.0},
-            {"id": "right", "label": "Путь III", "offset_m": 3.43},
         ]))
         if not self.lanes:
             self.lanes = [{"id": "main", "label": "Главный путь", "offset_m": 0.0}]

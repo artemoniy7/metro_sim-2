@@ -29,6 +29,8 @@ class Game:
         train_path = DATA_DIR / "trains" / (train_file or "81-760.json")
         train_data = load_json(train_path, default={})
         self.train = create_train(train_data)
+        # Always spawn the player on the configured main track, not on the opposing track.
+        self.train.track_index = self.track_network.main_lane
         self.renderer.configure_train_model(self.train)
         self.audio = AudioSystem(model_id=self.train.model_id)
         configure_station_joints = getattr(self.audio, "configure_station_joint_sounds", None)
@@ -83,6 +85,7 @@ class Game:
         else:
             start_position = station_position + 175.0 + (self.bot_number - 2) * 180.0
         bot = BotTrain(train_data, start_position=start_position)
+        bot.train.track_index = self.track_network.main_lane
         bot.train.display_name = f"Состав {self.bot_number}"
         self.bot_trains.append(bot)
 

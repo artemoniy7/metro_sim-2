@@ -258,10 +258,24 @@
         170
       ],
       "file": "line_15.json",
-      "train_wagons": null,
+      "train_wagons": {
+        "standard": 8,
+        "status": "operational"
+      },
       "train_wagons_status": "not_researched",
-      "max_platform_length_m": null,
-      "max_platform_length_status": "not_researched"
+      "max_platform_length_m": 163,
+      "max_platform_length_status": "verified",
+      "station_count": 8,
+      "train_types": [
+        "81-765.4/766.4/767.4 «Москва-2019»"
+      ],
+      "train_length_m": 155.08,
+      "train_length_status": "calculated_from_published_vehicle_lengths",
+      "train_wagons_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/about/",
+      "train_length_source": "https://www.asmetro.ru/upload/magazin/metro_0120.pdf",
+      "depots": [
+        "ТЧ-20 «Руднево»"
+      ]
     },
     {
       "id": "line_16",

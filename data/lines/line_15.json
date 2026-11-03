@@ -1,0 +1,179 @@
+{
+  "name": "Некрасовская линия (15, розовая)",
+  "line_number": 15,
+  "line_id": "line_15",
+  "color": [
+    231,
+    107,
+    170
+  ],
+  "color_hex": "#E76BAA",
+  "total_length_m": 14010,
+  "total_length_status": "published_operational_length",
+  "station_count": 8,
+  "train_wagons": {
+    "standard": 8,
+    "status": "operational"
+  },
+  "train_types": [
+    "81-765.4/766.4/767.4 «Москва-2019»"
+  ],
+  "train_length_m": 155.08,
+  "train_length_status": "calculated_from_published_vehicle_lengths",
+  "train_length_note": "8 вагонов: 2 головных по 20,12 м и 6 промежуточных по 19,14 м = 155,08 м.",
+  "depots": [
+    "ТЧ-20 «Руднево»"
+  ],
+  "distance_unit": "m",
+  "distance_policy": "Позиции станций и расстояния между ними рассчитаны по опубликованным пикетам станций (ПК); разности пикетов являются длинами участков по трассировке, а не прямыми расстояниями между координатами.",
+  "points": [
+    [
+      0,
+      15
+    ],
+    [
+      1887.7,
+      15
+    ],
+    [
+      3227.22,
+      18
+    ],
+    [
+      5325.04,
+      29
+    ],
+    [
+      7447.38,
+      23
+    ],
+    [
+      10242.35,
+      21
+    ],
+    [
+      12317.43,
+      19
+    ],
+    [
+      13865.04,
+      32
+    ],
+    [
+      14010,
+      32
+    ]
+  ],
+  "stations": [
+    {
+      "id": "station_01",
+      "name": "Некрасовка",
+      "position": 0,
+      "depth_m": 15,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 0,
+      "distance_status": "origin",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_02",
+      "name": "Лухмановская",
+      "position": 1887.7,
+      "depth_m": 15,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 1887.7,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_03",
+      "name": "Улица Дмитриевского",
+      "position": 3227.22,
+      "depth_m": 18,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 1339.52,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_04",
+      "name": "Косино",
+      "position": 5325.04,
+      "depth_m": 29,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 2097.82,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_05",
+      "name": "Юго-Восточная",
+      "position": 7447.38,
+      "depth_m": 23,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 2122.34,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_06",
+      "name": "Окская",
+      "position": 10242.35,
+      "depth_m": 21,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 2794.97,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_07",
+      "name": "Стахановская",
+      "position": 12317.43,
+      "depth_m": 19,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 2075.08,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    },
+    {
+      "id": "station_08",
+      "name": "Нижегородская",
+      "position": 13865.04,
+      "depth_m": 32,
+      "depth_status": "published_station_depth",
+      "length_m": 163,
+      "length_status": "standard_platform_length_163m",
+      "dwell_seconds": 20,
+      "distance_from_previous_m": 1547.61,
+      "distance_status": "verified_station_chainage_delta",
+      "position_status": "verified_station_chainage"
+    }
+  ],
+  "signals": [],
+  "max_platform_length_m": 163,
+  "max_platform_length_status": "verified",
+  "platform_length_note": "Максимальная полезная длина пассажирской платформы на линии — 163 м. Длина станционного комплекса у некоторых станций больше и не является длиной платформы.",
+  "distance_accuracy": "verified_station_chainage_deltas",
+  "line_description": "Действующий участок Некрасовской линии: Некрасовка — Нижегородская."
+}

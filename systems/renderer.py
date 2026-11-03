@@ -505,7 +505,10 @@ class Renderer:
                     # mirrors lane offsets, so the wall follows the opposite
                     # track in the newly selected cab view.
                     wall_track_y = track_y
-                    if track_network is not None and track_network.lanes:
+                    # In the initial cab view the wall stays aligned with the
+                    # player's own rails. Only after swapping cabs should it
+                    # move to the adjacent track on the opposite side.
+                    if self.cab_mirror and track_network is not None and track_network.lanes:
                         opposing_lane_index = next((
                             index for index in range(len(track_network.lanes))
                             if index != track_network.main_lane

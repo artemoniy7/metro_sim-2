@@ -268,6 +268,7 @@ class Game:
             self.camera.focus_screen_x = viewport_size[0] * 0.36
             self.camera.follow(self.train, self.line.path.total_length)
         surface.fill(BACKGROUND_COLOR)
+        self.renderer.selected_door_side = self.selected_door_side
         self.renderer.draw_scene(
             surface, self.line, self.train, self.camera, self.elapsed,
             doors_open=self.doors_open,

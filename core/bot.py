@@ -1,12 +1,12 @@
 """Simple automatic driving for AI metro trains."""
-from core.train import Train
+from core.train_models import create_train
 
 
 class BotTrain:
     """A deliberately simple driver: accelerate, brake for stations, and dwell."""
 
     def __init__(self, train_data, start_position=0.0):
-        self.train = Train(train_data)
+        self.train = create_train(train_data)
         self.train.position = float(start_position)
         self.train.is_bot = True
         self.state = "running"

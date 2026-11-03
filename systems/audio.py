@@ -849,6 +849,7 @@ class AudioSystem:
             and not train.brake_applied
             and getattr(train, "brake_release_timer", 0.0) <= 0.0
             and not getattr(train, "doors_open", False)
+            and getattr(train, "reverser_position", None) != 0
         )
         if traction_allowed:
             traction = min(1.0, 0.70 + (train.controller_notch - 1) * 0.10)

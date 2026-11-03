@@ -170,9 +170,9 @@ class Train:
         self._was_brake_commanded = brake_commanded
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
-        # The electric brake is the normal service brake. It is available down
-        # to about 5 km/h; below that it is replaced by BУФТ-controlled friction
-        # braking. On electric-brake failure, the pneumatic brake takes over.
+        # Ask the selected model's electric-brake implementation. Models whose
+        # technical sources are still pending return zero here and use their
+        # explicitly provisional pneumatic fallback instead.
         ed_available = (not self.electrodynamic_brake_failed
                         and self.electrodynamic_brake.available)
         ed_deceleration = 0.0
@@ -205,9 +205,9 @@ class Train:
             hold_brake=hold_brake,
         )
 
-        # Pressure is load-compensated by the pneumatic authoring model. The
-        # normalized cylinder pressure therefore maps to a calibrated service
-        # deceleration rather than applying an unscaled force to every load.
+        # Convert the selected model's cylinder pressure into its configured
+        # service-brake contribution. Provisional models use normalized units;
+        # Oka uses its documented circuit model plus game calibration.
         friction_fraction = (
             self.pressure_tc / max(0.01, self.pneumatics.max_tc_pressure)
         )

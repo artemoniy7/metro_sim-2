@@ -636,14 +636,11 @@ class Renderer:
         )
         loco_scaled = self._scaled_sprite(self.loco_image, loco_width)
         loco_height = loco_scaled.get_height() if loco_scaled is not None else 48
-        # The active cab determines which physical end leads the consist.
-        # Reversing the reverser changes travel direction, not wagon order.
-        reverse_player = getattr(train, "active_cab", 0) == 1
-        player_wagons = reversed(train.wagons) if reverse_player else train.wagons
-        vehicle_x = (loco_x + consist_width - loco_width
-                     if reverse_player else loco_x)
+        # Cab switching changes the camera focus, not the physical order
+        # or world-space positions of the vehicles in the consist.
+        vehicle_x = loco_x
         travelled = 0.0
-        for wagon in player_wagons:
+        for wagon in train.wagons:
             vehicle_width = loco_width if wagon.is_loco else car_width
             vehicle_image = self.loco_image if wagon.is_loco else self.car_image
             is_rear_cab = wagon.is_loco and wagon.index == len(train.wagons) - 1
@@ -662,31 +659,19 @@ class Renderer:
                         elapsed=elapsed, active=door_closing
                     )
                     center_x = vehicle_x + vehicle_width / 2
-                    wagon_position = (
-                        train.position - max(
-                            0.0, train.consist_length_m - train.loco_length_m
-                        ) + travelled
-                        if reverse_player else
-                        max(0.0, train.position - travelled)
-                    )
+                    wagon_position = max(0.0, train.position - travelled)
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
                     ) * scale
                     surface.blit(sprite, (round(vehicle_x), round(center_y - loco_height + 4)))
                 else:
                     center_x = vehicle_x + vehicle_width / 2
-                    wagon_position = (
-                        train.position - max(
-                            0.0, train.consist_length_m - train.loco_length_m
-                        ) + travelled
-                        if reverse_player else
-                        max(0.0, train.position - travelled)
-                    )
+                    wagon_position = max(0.0, train.position - travelled)
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
                     ) * scale
                     pygame.draw.rect(surface, (205, 210, 215) if wagon.is_loco else (185, 190, 196), (round(vehicle_x), round(center_y - 48 + 4), vehicle_width, 48))
-            vehicle_x += -vehicle_width if reverse_player else vehicle_width
+            vehicle_x += vehicle_width
             travelled += vehicle_width / scale
 
         # Draw AI trains using the same vehicle sprites and shared world camera.

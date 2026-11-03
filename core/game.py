@@ -127,6 +127,17 @@ class Game:
 
         self.controls.handle_event(event, self.train)
 
+    def _is_train_in_tunnel(self):
+        position = float(self.train.position)
+        if position < float(getattr(self.line, "depot_length", 0.0)):
+            return False
+        for station in self.line.stations:
+            center = float(station.get("position", 0.0))
+            half_length = float(station.get("length_m", 162.0)) / 2.0
+            if abs(position - center) <= half_length:
+                return False
+        return True
+
     def update(self, dt):
         self.elapsed += dt
         self.controls.update(self.train, dt)
@@ -197,7 +208,9 @@ class Game:
             direction=-1,
         )
         self.camera.follow(self.train, self.line.path.total_length)
-        self.audio.update(self.train, dt, self.camera)
+        self.audio.update(
+            self.train, dt, self.camera, in_tunnel=self._is_train_in_tunnel()
+        )
         self.station_simulation.update(dt, self.train, self.doors_open)
         update_station_ambience = getattr(self.audio, "update_station_ambience", None)
         if callable(update_station_ambience):

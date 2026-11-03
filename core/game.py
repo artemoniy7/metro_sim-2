@@ -100,8 +100,6 @@ class Game:
         cab_sign = 1 if self.train.active_cab == 0 else -1
         if selector:
             self.train.direction = selector * cab_sign
-        elif self.train.controller_notch > 0:
-            self.train.controller_notch = 0
 
     def _open_selected_doors(self, side):
         if self.selected_door_side != side:

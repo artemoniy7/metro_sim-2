@@ -20,8 +20,6 @@ class InputController:
                 if abs(train.speed) < 0.05 and hasattr(train, "reverser_position"):
                     step = 1 if event.key == pygame.K_p else -1
                     train.reverser_position = max(-1, min(1, train.reverser_position + step))
-                    if train.reverser_position == 0 and train.controller_notch > 0:
-                        train.controller_notch = 0
             elif event.key == pygame.K_k:
                 train.parking_brake_active = not train.parking_brake_active
             elif event.key == pygame.K_b:

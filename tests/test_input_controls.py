@@ -32,6 +32,11 @@ class InputControllerTests(unittest.TestCase):
             self.press(pygame.K_s)
         self.assertEqual(self.train.controller_notch, -3)
 
+    def test_w_increases_controller_even_while_reverser_is_neutral(self):
+        self.train.reverser_position = 0
+        self.press(pygame.K_w)
+        self.assertEqual(self.train.controller_notch, 1)
+
     def test_p_and_o_step_through_three_reverser_positions(self):
         self.press(pygame.K_p)
         self.assertEqual(self.train.reverser_position, 1)

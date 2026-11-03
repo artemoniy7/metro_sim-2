@@ -48,11 +48,11 @@
       23
     ],
     [
-      10242.31,
+      10242.35,
       21
     ],
     [
-      12317.39,
+      12317.43,
       19
     ],
     [
@@ -133,7 +133,7 @@
     {
       "id": "station_06",
       "name": "Окская",
-      "position": 10242.31,
+      "position": 10242.35,
       "depth_m": 21,
       "depth_status": "published_station_depth",
       "length_m": 163,
@@ -146,7 +146,7 @@
     {
       "id": "station_07",
       "name": "Стахановская",
-      "position": 12317.39,
+      "position": 12317.43,
       "depth_m": 19,
       "depth_status": "published_station_depth",
       "length_m": 163,

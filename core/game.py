@@ -134,10 +134,13 @@ class Game:
                     play_door_sound = getattr(self.audio, "play_door_sound", None)
                     if callable(play_door_sound):
                         play_door_sound()
-            elif event.key == pygame.K_0:
-                if abs(self.train.speed) < 0.05 and not self.doors_open:
+            elif event.key in (pygame.K_0, pygame.K_KP0):
+                # Cab change is a separate action from the reverser. Permit it
+                # whenever the train is stopped, including while doors are open.
+                if abs(self.train.speed) < 0.05:
                     self.train.active_cab = 1 - self.train.active_cab
                     self.camera.cab_swapped = bool(self.train.active_cab)
+                    self.camera.consist_offset_m = 0.0
                     self._sync_reverser_direction()
             elif event.key == pygame.K_i:
                 toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)

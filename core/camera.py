@@ -30,7 +30,12 @@ class Camera:
     def follow(self, train, route_length):
         # Train sprites face left. Increasing consist_offset moves the view
         # toward the cars, so the locomotive shifts toward the left edge.
-        cab_world_x = max(0.0, route_length - train.position - train.loco_length_m)
+        cab_world_x = route_length - train.position - train.loco_length_m
+        if getattr(train, "direction", 1) < 0:
+            # In reverse, the active cab is the rear locomotive at the far end
+            # of the consist. Follow that cab instead of the now-trailing front.
+            cab_world_x += train.consist_length_m - train.loco_length_m
+        cab_world_x = max(0.0, cab_world_x)
         self.x = max(
             0.0,
             cab_world_x - self.focus_screen_x / self.pixels_per_metre

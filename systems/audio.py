@@ -27,7 +27,8 @@ class AudioSystem:
     LOCO_PAIRS = ((345, 621), (1763, 2003))
     CAR_PAIRS = ((193, 464), (1761, 2016))
 
-    def __init__(self):
+    def __init__(self, model_id="81-760"):
+        self.model_id = str(model_id or "81-760")
         self.sounds = {}
         self._group_speeds = {}
         self._last_position = None
@@ -99,7 +100,7 @@ class AudioSystem:
             if pygame.mixer.get_init() is None:
                 pygame.mixer.init()
 
-            rolling_dir = ASSETS_DIR / "sounds" / "train" / "81-760"
+            rolling_dir = ASSETS_DIR / "sounds" / "train" / self.model_id
             try:
                 self.door_sound = pygame.mixer.Sound(str(rolling_dir / "doors" / "door_close.wav"))
             except (pygame.error, OSError):
@@ -261,8 +262,8 @@ class AudioSystem:
                 if hit == 1 and (group, 2) in self._station_joint_sounds
             })
 
-            loco_path = ASSETS_DIR / "trains" / "81-760" / "81-760-loco.png"
-            car_path = ASSETS_DIR / "trains" / "81-760" / "81-760-car.png"
+            loco_path = ASSETS_DIR / "trains" / self.model_id / f"{self.model_id}-loco.png"
+            car_path = ASSETS_DIR / "trains" / self.model_id / f"{self.model_id}-car.png"
             try:
                 self._loco_image_width = pygame.image.load(str(loco_path)).get_width()
             except (pygame.error, OSError):

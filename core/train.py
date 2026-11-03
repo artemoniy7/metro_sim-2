@@ -8,6 +8,7 @@ from core.train_models.oka.traction import KATP2Traction
 
 class Train:
     """Shared consist/route mechanics; equipment is injected by each model adapter."""
+    model_id = "81-760"
     PNEUMATIC_SYSTEM_CLASS = OkaPneumaticSystem
     ELECTRODYNAMIC_BRAKE_CLASS = OkaElectrodynamicBrake
     TRACTION_SYSTEM_CLASS = KATP2Traction
@@ -17,8 +18,8 @@ class Train:
 
     def __init__(self, data=None):
         data = data or {}
-        self.name = data.get("name", "81-760")
-        self.display_name = data.get("display_name", self.name)
+        self.name = data.get("name", self.model_id)
+        self.display_name = data.get("display_name", getattr(self, "model_display_name", self.name))
         self.max_speed = float(data.get("max_speed_kmh", 90)) / 3.6
         self.acceleration = float(data.get("acceleration_mps2", 0.9))
         self.service_brake = float(data.get("brake_mps2", 1.15))

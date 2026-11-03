@@ -247,8 +247,7 @@ class Renderer:
             rail_side = tuple(lane.get("rail_side", (76, 83, 93)))
             sleeper_color = tuple(lane.get("sleeper", (88, 83, 76)))
             ballast = tuple(lane.get("ballast", (39, 43, 51)))
-            previous = None            for sx in range(0, width, 4):                sy = rail_y_at(sx) + offset
-                if previous is not None:
+            previous = None            for sx in range(0, width, 4):                sy = rail_y_at(sx) + offset                if previous is not None:
                     px, py = previous
                     pygame.draw.polygon(surface, ballast, [
                         (px, py + 8), (sx, sy + 8),
@@ -497,8 +496,7 @@ class Renderer:
                     station_bottom_extra = max(1, round(0.25 * scale))
                     station_wall_top = self._station_wall_top(
                         track_y, station_height, station_bottom_extra, self.cab_mirror                    )
-                    # At the station occupied by the train, show the adjacent
-                    # station wall in the direction of the newly selected cab.
+                    # At the station occupied by the train, show the adjacent                    # station wall in the direction of the newly selected cab.
                     wall_station_index = station_index
                     if station_index == player_station_index:
                         adjacent_index = station_index + (-1 if self.cab_mirror else 1)
@@ -745,4 +743,155 @@ class Renderer:
                     train, "occupied_track_indices", {getattr(train, "track_index", track_network.main_lane)}
                 ))
                 tunnel_alpha = 255 if opposing_lane_index in occupied_tracks else 112
+                opposing_offset = self._lane_offset_pixels(                        (opposing_tunnel_width, opposing_tunnel_height),
+                    )
+                    overlay_tile.set_alpha(tunnel_alpha)
+                    self._opposing_tunnel_cache[overlay_key] = overlay_tile
+                    if len(self._opposing_tunnel_cache) > 24:
+                        self._opposing_tunnel_cache.pop(next(iter(self._opposing_tunnel_cache)))
+                opposing_tunnel_tile = self._opposing_tunnel_cache[overlay_key]
+                for sx in range(0, width, 4):
+                    world_x = camera_x + sx / scale
+                    route_position = line.path.total_length - world_x
+                    # Keep station platforms and the surface depot unobstructed.
+                    if depot_length > 0.0 and route_position < depot_length:
+                        continue
+                    if any(
+                        abs(route_position - float(station.get("position", 0)))
+                        <= float(station.get("length_m", 162)) / 2
+                        for station in line.stations
+                    ):
+                        continue
+                    track_y = rail_y_at(sx) + opposing_offset
+                    src_x = int((world_x * scale) % opposing_tunnel_width)
+                    src_x = min(opposing_tunnel_width - 1, max(0, src_x))
+                    slice_width = min(4, width - sx, opposing_tunnel_width - src_x)
+                    if slice_width > 0:
+                        surface.blit(
+                            opposing_tunnel_tile.subsurface((
+                                src_x, 0, slice_width, opposing_tunnel_height
+                            )),
+                            (sx, round(track_y - opposing_tunnel_height)),
+                        )
+                    if slice_width < min(4, width - sx):
+                        extra_width = min(4, width - sx) - slice_width
+                        surface.blit(
+                            opposing_tunnel_tile.subsurface((0, 0, extra_width, opposing_tunnel_height)),
+                            (sx + slice_width, round(track_y - opposing_tunnel_height)),
+                        )
+
+        # Opposing-path signals use the same block aspects, but are dimmed
+        # whenever the player is on the main path.
+        if track_network is not None:
+            opposing_lane_index = next((
+                index for index in range(len(track_network.lanes))
+                if index != track_network.main_lane
+            ), None)
+            if opposing_lane_index is not None:
+                occupied_tracks = set(getattr(
+                    train, "occupied_track_indices",
+                    {getattr(train, "track_index", track_network.main_lane)}
+                ))
+                signal_alpha = 255 if opposing_lane_index in occupied_tracks else 112
                 opposing_offset = self._lane_offset_pixels(
+                    track_network.lanes[opposing_lane_index], scale
+                )
+                for signal in line.opposing_signals:
+                    x = int((line.path.total_length - signal.position - camera_x) * scale)
+                    if -80 < x < width + 80:
+                        sy = rail_y_at(max(0, min(width - 1, x))) + opposing_offset
+                        self._draw_signal(
+                            surface, signal, x, sy, tunnel_height, scale, signal_alpha
+                        )
+
+        speed_limit_kmh = train.als.speed_limit(line, train.position, train.max_speed, train)
+        if depot_mode:
+            # A shunting signal is fixed in the depot world, so it moves with
+            # the camera rather than being painted as a screen-space icon.
+            signal_world = depot_length - 42.0
+            signal_x = round((line.path.total_length - signal_world - camera_x) * scale)
+            signal_y = round(base_track_y - 100)
+            if -30 < signal_x < width + 30:
+                pygame.draw.line(surface, (80, 84, 91), (signal_x, signal_y + 24),
+                                 (signal_x, base_track_y + 2), 4)
+                pygame.draw.rect(surface, (19, 22, 27),
+                                 (signal_x - 11, signal_y, 22, 48), border_radius=4)
+                lamp = (235, 240, 245) if depot_route_set else (45, 105, 255)
+                pygame.draw.circle(surface, lamp, (signal_x, signal_y + 13), 7)
+                pygame.draw.circle(surface, (48, 51, 58), (signal_x, signal_y + 34), 6)
+        pygame.draw.rect(surface, (12, 15, 20), (16, 16, 790, 245), border_radius=8)
+        surface.blit(self.font.render(self.train_model_label, True, (240, 240, 240)), (30, 25))
+        surface.blit(self.font.render(f"Скорость: {train.speed * 3.6:05.1f} км/ч", True, (110, 220, 160)), (30, 56))
+        surface.blit(self.small_font.render(f"АЛС-АРС: {train.als.indication_kmh:.0f} км/ч", True, (245, 205, 105)), (30, 89))
+        surface.blit(self.small_font.render(f"Свободно блоков: {train.als.free_blocks_ahead}", True, (170, 195, 215)), (30, 108))
+        bot_status = " | ".join(
+            f"{getattr(bot, 'display_name', 'Бот')}: {bot.speed * 3.6:.0f} км/ч, {bot.position:.0f} м"
+            for bot in (other_trains or [])
+        ) or "нет"
+        surface.blit(self.small_font.render(f"ИИ-составов: {len(other_trains or [])} ({bot_status})", True, (175, 205, 235)), (30, 130))
+        lever_color = (255, 180, 95) if train.controller_notch < 0 else (110, 220, 160)
+        surface.blit(self.font.render(f"Ручка: {train.controller_label}", True, lever_color), (30, 115))
+        surface.blit(self.small_font.render(f"Путь: {train.position:.0f} м / {line.path.total_length:.0f} м", True, (210, 215, 222)), (30, 147))
+        next_station = next((station for station in line.stations if float(station.get("position", 0)) > train.position), None)
+        if next_station is not None:
+            next_distance = max(0.0, float(next_station["position"]) - train.position)
+            next_text = f"До {next_station['name']}: {next_distance / 1000:.2f} км"
+        else:
+            next_text = "Конечная станция"
+        surface.blit(self.small_font.render(next_text, True, (230, 150, 155)), (465, 25))
+        pneumatic = train.pneumatics
+        surface.blit(self.small_font.render(
+            f"НМ: {train.pressure_nm:.2f} {train.PRESSURE_DISPLAY_UNIT}   ТМ: {train.pressure_tm:.2f} {train.PRESSURE_DISPLAY_UNIT}",
+            True, (155, 205, 235)
+        ), (465, 56))
+        surface.blit(self.small_font.render(
+            f"ТЦ: {train.pressure_tc:.2f} {train.PRESSURE_DISPLAY_UNIT}   Компрессор: {'работает' if pneumatic.compressor_active else 'ожидание'}",
+            True, (155, 205, 235)
+        ), (465, 79))
+        surface.blit(self.small_font.render(
+            f"Дверная магистраль: {pneumatic.pressure_door:.2f} {train.PRESSURE_DISPLAY_UNIT}",
+            True, (155, 205, 235)
+        ), (465, 102))
+        parking_label = "прижат" if pneumatic.parking_brake_applied else "отпущен"
+        surface.blit(self.small_font.render(
+            f"Стояночный тормоз: {parking_label} (K — переключить)",
+            True, (255, 185, 120) if pneumatic.parking_brake_applied else (155, 205, 235)
+        ), (465, 125))
+        surface.blit(self.small_font.render(
+            f"Торможение: {train.brake_mode_label} | замедление: {train.brake_deceleration:.2f} м/с²",
+            True, (255, 190, 125) if train.brake_deceleration > 0.05 else (155, 205, 235)
+        ), (465, 147))
+        reverser_label = {-1: "НАЗАД", 0: "НЕЙТРАЛЬ", 1: "ВПЕРЁД"}.get(
+            int(getattr(train, "reverser_position", 0)), "—"
+        )
+        cab_label = "2" if getattr(train, "active_cab", 0) else "1"
+        door_side = {"left": "ЛЕВЫЕ", "right": "ПРАВЫЕ"}.get(
+            getattr(self, "selected_door_side", None), "НЕ ВЫБРАНЫ"
+        )
+        controls_text = ("W/S контроллер   Shift+A/D выбор дверей   A/D открыть   V закрыть"
+                         "   0 кабина   P/O реверс   I объявления   колесо — масштаб")
+        surface.blit(self.small_font.render(
+            f"Кабина {cab_label} | Реверс: {reverser_label} | Двери: {door_side}",
+            True, (205, 210, 218)
+        ), (30, 173))
+        surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 250))
+        if track_network is not None:
+            lane_label = track_network.lane_label(train)
+            surface.blit(self.small_font.render(
+                f"{lane_label}   Q/E — смена пути на стрелке   {track_network.last_message}",
+                True, (190, 210, 225)
+            ), (30, 278))
+        if depot_mode:
+            status = "МАНЕВРОВЫЙ МАРШРУТ ОТКРЫТ" if depot_route_set else "МАНЕВРОВЫЙ МАРШРУТ ЗАКРЫТ — R"
+            surface.blit(self.small_font.render(status, True,
+                                                (235, 240, 245) if depot_route_set else (100, 160, 255)),
+                         (30, 250))
+        if station_simulation is not None:
+            surface.blit(self.font.render(f"Время: {station_simulation.clock_text}", True, (245, 245, 245)), (30, 198))
+            surface.blit(self.small_font.render(station_simulation.period_text, True,
+                                                (255, 190, 100) if station_simulation.is_peak else (150, 210, 230)), (220, 204))
+            station_index, nearby_station, station_distance = station_simulation.nearest_station(train.position)
+            if nearby_station is not None:
+                passenger_count = station_simulation.passengers.get(station_index, 0)
+                label = f"Станция: {nearby_station.get('name', '—')} | Ожидают: {passenger_count}"
+                surface.blit(self.small_font.render(label, True, (190, 220, 190)), (30, 226))

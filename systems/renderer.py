@@ -5,11 +5,13 @@ from settings import ASSETS_DIR
 from core.train_models.oka import profile as oka_profile
 from core.train_models.nomernoy import profile as nomernoy_profile
 from core.train_models.rusich import profile as rusich_profile
+from core.train_models.yauza import profile as yauza_profile
 
 TRAIN_RENDER_PROFILES = {
     "81-760": oka_profile,
     "81-717": nomernoy_profile,
     "81-740": rusich_profile,
+    "81-777": yauza_profile,
 }
 
 

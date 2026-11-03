@@ -7,6 +7,7 @@ from core.train_models import create_train, get_train_model_class
 from core.train_models.model_81_717 import Train81717
 from core.train_models.model_81_740 import Train81740
 from core.train_models.model_81_760 import Train81760
+from core.train_models.model_81_777 import Train81777
 
 
 class TrainModelRegistryTests(unittest.TestCase):
@@ -15,9 +16,10 @@ class TrainModelRegistryTests(unittest.TestCase):
             get_train_model_class("81-717"),
             get_train_model_class("81-740"),
             get_train_model_class("81-760"),
+            get_train_model_class("81-777"),
         )
-        self.assertEqual(classes, (Train81717, Train81740, Train81760))
-        self.assertEqual(len(set(classes)), 3)
+        self.assertEqual(classes, (Train81717, Train81740, Train81760, Train81777))
+        self.assertEqual(len(set(classes)), 4)
         self.assertTrue(all(issubclass(cls, Train) for cls in classes))
 
     def test_factory_uses_model_id_from_configuration(self):
@@ -25,6 +27,7 @@ class TrainModelRegistryTests(unittest.TestCase):
             ("81-717", Train81717),
             ("81-740", Train81740),
             ("81-760", Train81760),
+            ("81-777", Train81777),
         ):
             with self.subTest(model_id=model_id):
                 train = create_train({"name": model_id})

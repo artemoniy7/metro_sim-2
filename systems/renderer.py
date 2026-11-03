@@ -216,14 +216,12 @@ class Renderer:
 
     @staticmethod
     def _station_wall_top(track_y, station_height, bottom_extra, mirrored):
-        """Anchor the wall edge nearest the track to the rail line.
+        """Keep the station image above the rails from either active cab.
 
-        Cab 1 sees the wall above the rails (its bottom edge is above the
-        railhead). Cab 2 sees it on the opposite side (its top edge is below
-        the railhead). The image must not straddle the track in either view.
+        Switching cabs changes which station wall texture is selected, not
+        which edge of that texture meets the track: its bottom edge stays
+        just above the railhead in both views.
         """
-        if mirrored:
-            return track_y + bottom_extra
         return track_y - station_height - bottom_extra
 
     def _lane_offset_pixels(self, lane, scale):

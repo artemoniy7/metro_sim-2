@@ -56,6 +56,9 @@ class AudioSystem:
         self._chopper_sound = None
         self._chopper_was_active = False
         self._extra_engine_channels = []
+        self._tunnel_curve_sound = None
+        self._tunnel_curve_channel = None
+        self._tunnel_curve_volume = 0.0
         self.brake_sounds = {}
         self.door_sound = None
         self.door_ring_sound = None
@@ -130,13 +133,21 @@ class AudioSystem:
                 except (pygame.error, OSError):
                     setattr(self, attribute, None)
 
+            try:
+                self._tunnel_curve_sound = pygame.mixer.Sound(
+                    str(engine_dir / "tunnel_curve_load.wav")
+                )
+            except (pygame.error, OSError):
+                self._tunnel_curve_sound = None
+
             # Give each sound category its own channels. Track-joint sounds
             # must never steal a channel from the motor, brakes, or announcements.
-            pygame.mixer.set_num_channels(max(36, pygame.mixer.get_num_channels()))
+            pygame.mixer.set_num_channels(max(37, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
             self.rolling_channels = [pygame.mixer.Channel(i) for i in range(3)]
             self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 6)]
             self._extra_engine_channels = [pygame.mixer.Channel(34), pygame.mixer.Channel(35)]
+            self._tunnel_curve_channel = pygame.mixer.Channel(36)
             # Keep both brake channels reserved from automatic joint-sound playback.
             self.brake_channel = pygame.mixer.Channel(6)
             self.brake_channel_alt = pygame.mixer.Channel(7)
@@ -874,8 +885,30 @@ class AudioSystem:
                 chopper_channel.play(self._chopper_sound)
         self._chopper_was_active = chopper_active
 
-    def update(self, train, dt, camera=None):
+    def _update_tunnel_curve(self, train, dt, in_tunnel):
+        if self._tunnel_curve_sound is None or self._tunnel_curve_channel is None:
+            return
+
+        speed_kmh = abs(train.speed) * 3.6
+        speed_weight = self._fade_in(speed_kmh, 60.0, 90.0)
+        target_volume = 0.46 * speed_weight if in_tunnel else 0.0
+        fade_time = 1.8 if target_volume > self._tunnel_curve_volume else 0.45
+        smoothing = 1.0 - math.exp(-max(0.0, dt) / fade_time)
+        self._tunnel_curve_volume += (
+            target_volume - self._tunnel_curve_volume
+        ) * smoothing
+        self._tunnel_curve_channel.set_volume(self._tunnel_curve_volume)
+
+        if target_volume > 0.005 and not self._tunnel_curve_channel.get_busy():
+            self._tunnel_curve_channel.play(self._tunnel_curve_sound, loops=-1)
+        elif self._tunnel_curve_volume < 0.005:
+            if self._tunnel_curve_channel.get_busy():
+                self._tunnel_curve_channel.stop()
+            self._tunnel_curve_volume = 0.0
+
+    def update(self, train, dt, camera=None, in_tunnel=False):
         speed = abs(train.speed)
+        self._update_tunnel_curve(train, dt, in_tunnel)
         self._update_overspeed_warning(train)
         self._update_rolling(speed)
         self._update_engine(train, dt)

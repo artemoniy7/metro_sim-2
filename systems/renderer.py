@@ -55,6 +55,7 @@ class Renderer:
         self._opposing_tunnel_cache = {}
         self.cab_mirror = False
         self.main_lane_offset_m = 0.0
+        self.lane_center_offset_m = 0.0
 
     def configure_train_model(self, train_or_model_id):
         """Load only the selected model's sprites; never borrow another model's art."""
@@ -367,9 +368,13 @@ class Renderer:
         camera_x = camera.x
         self.cab_mirror = bool(getattr(camera, "cab_swapped", False))
         if track_network is not None and track_network.lanes:
-            self.main_lane_offset_m = track_network.lane_offset_for_index(track_network.main_lane)
+            offsets = [track_network.lane_offset_for_index(i)
+                       for i in range(len(track_network.lanes))]
+            self.main_lane_offset_m = offsets[track_network.main_lane]
+            self.lane_center_offset_m = sum(offsets) / len(offsets)
         else:
             self.main_lane_offset_m = 0.0
+            self.lane_center_offset_m = 0.0
 
         def rail_y_at(screen_x):
             world_x = camera_x + screen_x / scale
@@ -402,7 +407,7 @@ class Renderer:
             cab_sign = -1.0 if self.cab_mirror else 1.0
             return round(base_track_y + (depth_m - 10.0) * profile_scale
                          - self._track_offset(world_x) * scale * offset_weight
-                         + cab_sign * self.main_lane_offset_m * scale)
+                         + cab_sign * (self.main_lane_offset_m - self.lane_center_offset_m) * scale)
 
         depot_length = float(getattr(line, "depot_length", 0.0))
         ground_y = int(height * 0.58 - camera.panel_vertical_offset)
@@ -576,8 +581,12 @@ class Renderer:
         car_width = max(1, round(train.car_length_m * scale))
         loco_scaled = self._scaled_sprite(self.loco_image, loco_width)
         loco_height = loco_scaled.get_height() if loco_scaled is not None else 48
-        vehicle_x = loco_x
-        for wagon in train.wagons:
+        reverse_player = getattr(train, "direction", 1) < 0
+        player_wagons = reversed(train.wagons) if reverse_player else train.wagons
+        vehicle_x = (loco_x - (train.consist_length_m - train.loco_length_m) * scale
+                     if reverse_player else loco_x)
+        travelled = 0.0
+        for wagon in player_wagons:
             vehicle_width = loco_width if wagon.is_loco else car_width
             vehicle_image = self.loco_image if wagon.is_loco else self.car_image
             is_rear_cab = wagon.is_loco and wagon.index == len(train.wagons) - 1
@@ -596,8 +605,11 @@ class Renderer:
                         elapsed=elapsed, active=door_closing
                     )
                     center_x = vehicle_x + vehicle_width / 2
-                    wagon_position = max(
-                        0.0, train.position - max(0.0, (vehicle_x - loco_x) / scale)
+                    wagon_position = (
+                        train.position + max(0.0, train.consist_length_m - travelled
+                                             - vehicle_width / scale)
+                        if reverse_player else
+                        max(0.0, train.position - travelled)
                     )
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
@@ -605,14 +617,18 @@ class Renderer:
                     surface.blit(sprite, (round(vehicle_x), round(center_y - loco_height + 4)))
                 else:
                     center_x = vehicle_x + vehicle_width / 2
-                    wagon_position = max(
-                        0.0, train.position - max(0.0, (vehicle_x - loco_x) / scale)
+                    wagon_position = (
+                        train.position + max(0.0, train.consist_length_m - travelled
+                                             - vehicle_width / scale)
+                        if reverse_player else
+                        max(0.0, train.position - travelled)
                     )
                     center_y = rail_y_at(center_x) + self._train_track_offset(
                         track_network, train, wagon_position
                     ) * scale
                     pygame.draw.rect(surface, (205, 210, 215) if wagon.is_loco else (185, 190, 196), (round(vehicle_x), round(center_y - 48 + 4), vehicle_width, 48))
-            vehicle_x += vehicle_width
+            vehicle_x += -vehicle_width if reverse_player else vehicle_width
+            travelled += vehicle_width / scale
 
         # Draw AI trains using the same vehicle sprites and shared world camera.
         for bot_train in (other_trains or []):

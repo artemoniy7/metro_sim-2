@@ -572,5 +572,12 @@
   "line_id": "line_9",
   "color_hex": "#91949B",
   "distance_units": "meters",
-  "distance_accuracy": "existing_route_positions_unverified"
+  "distance_accuracy": "existing_route_positions_unverified",
+  "train_types": [
+    "81-760 «Ока»"
+  ],
+  "available_train_models": [
+    "81-760"
+  ],
+  "available_train_models_note": "В меню показывается только реализованная модель 81-760."
 }

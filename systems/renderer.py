@@ -54,6 +54,7 @@ class Renderer:
         self._tunnel_tile_cache = {}
         self._opposing_tunnel_cache = {}
         self.cab_mirror = False
+        self.main_lane_offset_m = 0.0
 
     def configure_train_model(self, train_or_model_id):
         """Load only the selected model's sprites; never borrow another model's art."""
@@ -220,7 +221,7 @@ class Renderer:
         if offset_m is None:
             offset_m = float(lane.get("offset_px", 0.0)) / 28.0
         mirror = -1.0 if self.cab_mirror else 1.0
-        return float(offset_m) * scale * mirror
+        return (float(offset_m) - self.main_lane_offset_m) * scale * mirror
 
     def _draw_parallel_tracks(self, surface, line, camera_x, scale, rail_y_at, network):
         """Draw parallel paths with world-space spacing, behind the tunnel shell."""
@@ -365,6 +366,10 @@ class Renderer:
         base_track_y = int(height * 0.79 - camera.panel_vertical_offset)
         camera_x = camera.x
         self.cab_mirror = bool(getattr(camera, "cab_swapped", False))
+        if track_network is not None and track_network.lanes:
+            self.main_lane_offset_m = track_network.lane_offset_for_index(track_network.main_lane)
+        else:
+            self.main_lane_offset_m = 0.0
 
         def rail_y_at(screen_x):
             world_x = camera_x + screen_x / scale
@@ -394,8 +399,10 @@ class Renderer:
                     break
 
             profile_scale = scale * (1.35 / 28.0)
+            cab_sign = -1.0 if self.cab_mirror else 1.0
             return round(base_track_y + (depth_m - 10.0) * profile_scale
-                         - self._track_offset(world_x) * scale * offset_weight)
+                         - self._track_offset(world_x) * scale * offset_weight
+                         + cab_sign * self.main_lane_offset_m * scale)
 
         depot_length = float(getattr(line, "depot_length", 0.0))
         ground_y = int(height * 0.58 - camera.panel_vertical_offset)
@@ -826,7 +833,7 @@ class Renderer:
             f"Кабина {cab_label} | Реверс: {reverser_label} | Двери: {door_side}",
             True, (205, 210, 218)
         ), (30, 173))
-        surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 196))
+        surface.blit(self.small_font.render(controls_text, True, (205, 210, 218)), (30, 250))
         if track_network is not None:
             lane_label = track_network.lane_label(train)
             surface.blit(self.small_font.render(

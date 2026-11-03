@@ -790,15 +790,15 @@ class Renderer:
         surface.blit(self.small_font.render(next_text, True, (230, 150, 155)), (465, 25))
         pneumatic = train.pneumatics
         surface.blit(self.small_font.render(
-            f"НМ: {train.pressure_nm:.2f} кгс/см²   ТМ: {train.pressure_tm:.2f} кгс/см²",
+            f"НМ: {train.pressure_nm:.2f} {train.PRESSURE_DISPLAY_UNIT}   ТМ: {train.pressure_tm:.2f} {train.PRESSURE_DISPLAY_UNIT}",
             True, (155, 205, 235)
         ), (465, 56))
         surface.blit(self.small_font.render(
-            f"ТЦ: {train.pressure_tc:.2f} кгс/см²   Компрессор: {'работает' if pneumatic.compressor_active else 'ожидание'}",
+            f"ТЦ: {train.pressure_tc:.2f} {train.PRESSURE_DISPLAY_UNIT}   Компрессор: {'работает' if pneumatic.compressor_active else 'ожидание'}",
             True, (155, 205, 235)
         ), (465, 79))
         surface.blit(self.small_font.render(
-            f"Дверная магистраль: {pneumatic.pressure_door:.2f} кгс/см²",
+            f"Дверная магистраль: {pneumatic.pressure_door:.2f} {train.PRESSURE_DISPLAY_UNIT}",
             True, (155, 205, 235)
         ), (465, 102))
         parking_label = "прижат" if pneumatic.parking_brake_applied else "отпущен"

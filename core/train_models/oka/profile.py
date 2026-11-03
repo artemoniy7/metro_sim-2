@@ -12,3 +12,4 @@ LOCO_PAIRS = ((345, 621), (1763, 2003))
 CAR_PAIRS = ((193, 464), (1761, 2016))
 JOINT_PATTERN = r"joint_stl760_(\d+)_([12])_(\d+)\.(?:wav|mp3)$"
 STATION_JOINT_PATTERN = r"joint_station_(?:end_)?(\d+)_([12])_fade\.wav$"
+COMPRESSOR_SUPPORTED = True

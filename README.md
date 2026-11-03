@@ -2,6 +2,10 @@
 
 A small Python/Pygame metro driving simulator. The playable train is the 81-760 «Ока», using the sprites in `assets/trains/81-760/`.
 
+## Train models
+
+Train creation is routed through `core.train_models`, with separate adapters for 81-717, 81-740 and 81-760. See [`docs/train-model-separation.md`](docs/train-model-separation.md) for the architecture, current source/asset gaps and completion checklist. The 81-717 and 81-740 physics are still provisional pending model-specific technical references.
+
 ## Run
 ```bash
 python -m pip install -r requirements.txt

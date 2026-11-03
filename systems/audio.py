@@ -134,11 +134,11 @@ class AudioSystem:
 
             # Give each sound category its own channels. Track-joint sounds
             # must never steal a channel from the motor, brakes, or announcements.
-            pygame.mixer.set_num_channels(max(36, pygame.mixer.get_num_channels()))
+            pygame.mixer.set_num_channels(max(40, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
             self.rolling_channels = [pygame.mixer.Channel(i) for i in range(3)]
-            self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 8)]
-            self._extra_engine_channels = [pygame.mixer.Channel(34), pygame.mixer.Channel(35)]
+            self.engine_channels = [pygame.mixer.Channel(i) for i in (3, 4, 5, 36, 37)]
+            self._extra_engine_channels = [pygame.mixer.Channel(38), pygame.mixer.Channel(39)]
             # Keep both brake channels reserved from automatic joint-sound playback.
             self.brake_channel = pygame.mixer.Channel(6)
             self.brake_channel_alt = pygame.mixer.Channel(7)

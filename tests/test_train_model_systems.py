@@ -24,8 +24,8 @@ class TrainModelRegistryTests(unittest.TestCase):
             get_train_model_class("81-760"),
             get_train_model_class("81-777"),
         )
-        self.assertEqual(classes, (Train81717, Train81740, Train81760))
-        self.assertEqual(len(set(classes)), 3)
+        self.assertEqual(classes, (Train81717, Train81740, Train81760, Train81777))
+        self.assertEqual(len(set(classes)), 4)
 
     def test_factory_uses_explicit_model_id(self):
         for model_id, expected_class in (
@@ -50,6 +50,7 @@ class TrainModelRegistryTests(unittest.TestCase):
             create_train({"model_id": "81-717", "name": "81-717"}),
             create_train({"model_id": "81-740", "name": "81-740"}),
             create_train({"model_id": "81-760", "name": "81-760"}),
+            create_train({"model_id": "81-777", "name": "81-777"}),
         )
         for attribute in ("pneumatics", "electrodynamic_brake", "traction_system"):
             with self.subTest(component=attribute):

@@ -1,12 +1,12 @@
 """Simple AI traffic travelling against the main line direction."""
-from core.train import Train
+from core.train_models import create_train
 
 
 class OpposingBot:
     """A lightweight reverse-direction train with station stops."""
 
     def __init__(self, train_data, start_position):
-        self.train = Train(train_data)
+        self.train = create_train(train_data)
         self.train.position = float(start_position)
         self.train.direction = -1
         self.train.track_index = 0

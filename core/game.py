@@ -1,7 +1,7 @@
 """Main game state and scene manager."""
 import pygame
 from settings import BACKGROUND_COLOR, WINDOW_SIZE, DATA_DIR
-from core.train import Train
+from core.train_models import create_train
 from core.bot import BotTrain
 from core.opposing_bot import OpposingBot
 from core.camera import Camera
@@ -36,7 +36,7 @@ class Game:
             configure_announcements(len(self.line.stations), line_id)
         train_path = DATA_DIR / "trains" / (train_file or "81-760.json")
         train_data = load_json(train_path, default={})
-        self.train = Train(train_data)
+        self.train = create_train(train_data)
         self.line_max_speed = self.train.max_speed
         self.train.position = max(0.0, float(start_position))
         self.end_position = float(end_position) if end_position is not None else self.line.path.total_length
@@ -66,7 +66,7 @@ class Game:
                 self._dispatch_opposing_train(position)
 
     def _dispatch_bot(self):
-        train_data = load_json(DATA_DIR / "trains" / "81-760.json", default={})
+        train_data = load_json(DATA_DIR / "trains" / f"{self.train.model_id}.json", default={})
         self.bot_number += 1
         # Keep one bot farther down the line. All other bots queue just beyond
         # Altufyevo's platform, spaced by roughly one train length so they do
@@ -82,7 +82,7 @@ class Game:
         self.bot_trains.append(bot)
 
     def _dispatch_opposing_train(self, start_position):
-        train_data = load_json(DATA_DIR / "trains" / "81-760.json", default={})
+        train_data = load_json(DATA_DIR / "trains" / f"{self.train.model_id}.json", default={})
         opposing = OpposingBot(
             train_data,
             start_position=min(float(start_position), self.line.path.total_length - 1800.0),

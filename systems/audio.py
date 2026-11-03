@@ -234,10 +234,7 @@ class AudioSystem:
             sound_dir = rolling_dir / "joint"
             # New exterior recordings encode the recording speed in the filename:
             # joint_stl760_<group>_<hit>_<speed>.wav
-            pattern = re.compile(
-                r"joint_stl760_(\d+)_([12])_(\d+)\.(?:wav|mp3)$",
-                re.IGNORECASE,
-            )
+            pattern = re.compile(profile.JOINT_PATTERN or r"(?!)", re.IGNORECASE)
             for path in sorted(sound_dir.iterdir()):
                 match = pattern.fullmatch(path.name)
                 if not match:
@@ -258,10 +255,7 @@ class AudioSystem:
             })
 
             # Load the dedicated platform-joint recordings, including end variants.
-            station_pattern = re.compile(
-                r"joint_station_(?:end_)?(\d+)_([12])_fade\.wav$",
-                re.IGNORECASE,
-            )
+            station_pattern = re.compile(profile.STATION_JOINT_PATTERN or r"(?!)", re.IGNORECASE)
             for path in sorted(sound_dir.iterdir()):
                 match = station_pattern.fullmatch(path.name)
                 if not match:

@@ -247,8 +247,7 @@ class Renderer:
             rail_side = tuple(lane.get("rail_side", (76, 83, 93)))
             sleeper_color = tuple(lane.get("sleeper", (88, 83, 76)))
             ballast = tuple(lane.get("ballast", (39, 43, 51)))
-            previous = None            for sx in range(0, width, 4):
-                sy = rail_y_at(sx) + offset
+            previous = None            for sx in range(0, width, 4):                sy = rail_y_at(sx) + offset
                 if previous is not None:
                     px, py = previous
                     pygame.draw.polygon(surface, ballast, [
@@ -454,9 +453,9 @@ class Renderer:
         # The main tunnel belongs only to the main track. The opposing track
         # gets its own foreground tunnel overlay after the trains are drawn.
         tunnel_draw_height = tunnel_height
-        # train.position is anchored to cab 1's physical end. When cab 2 is
-        # selected, its station position is one consist length behind that
-        # reference; use the active cab to identify the occupied station.
+        # train.position is anchored to the first (index 0) cab. When the
+        # second cab is selected, its station position is one consist length
+        # behind that reference; use the active cab to identify the station.
         player_station_position = float(train.position)
         if self.cab_mirror:
             player_station_position -= max(
@@ -497,8 +496,7 @@ class Renderer:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
                     station_wall_top = self._station_wall_top(
-                        track_y, station_height, station_bottom_extra, self.cab_mirror
-                    )
+                        track_y, station_height, station_bottom_extra, self.cab_mirror                    )
                     # At the station occupied by the train, show the adjacent
                     # station wall in the direction of the newly selected cab.
                     wall_station_index = station_index
@@ -748,17 +746,3 @@ class Renderer:
                 ))
                 tunnel_alpha = 255 if opposing_lane_index in occupied_tracks else 112
                 opposing_offset = self._lane_offset_pixels(
-                    track_network.lanes[opposing_lane_index], scale
-                )
-                opposing_tunnel_height = tunnel_height
-                opposing_tunnel_width = max(1, round(
-                    opposing_tunnel_height * self.tunnel_image.get_width()
-                    / self.tunnel_image.get_height()
-                ))
-                overlay_key = (
-                    id(self.tunnel_image), opposing_tunnel_width,
-                    opposing_tunnel_height, tunnel_alpha,
-                )
-                if overlay_key not in self._opposing_tunnel_cache:
-                    overlay_tile = pygame.transform.smoothscale(
-                        self.tunnel_image,

@@ -1,6 +1,6 @@
 # Metro Sim
 
-A small Python/Pygame metro driving simulator. The playable train is the 81-760 «Ока», using the sprites in `assets/trains/81-760/`.
+A Python/Pygame metro driving simulator with selectable 81-717, 81-740 and 81-760 train adapters. The 81-760 «Ока» currently has the only source-documented detailed equipment model; 81-717 and 81-740 use clearly labelled provisional physics until their technical manuals and assets are added.
 
 ## Train models
 

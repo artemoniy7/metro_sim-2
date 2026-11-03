@@ -500,18 +500,25 @@ class Renderer:
                 elif station_index is not None:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
+                    # The station wall belongs to the neighbouring track, not
+                    # the rails directly beneath the player's train. Cab swap
+                    # mirrors lane offsets, so the wall follows the opposite
+                    # track in the newly selected cab view.
+                    wall_track_y = track_y
+                    if track_network is not None and track_network.lanes:
+                        opposing_lane_index = next((
+                            index for index in range(len(track_network.lanes))
+                            if index != track_network.main_lane
+                        ), None)
+                        if opposing_lane_index is not None:
+                            wall_track_y += self._lane_offset_pixels(
+                                track_network.lanes[opposing_lane_index], scale
+                            )
                     station_wall_top = self._station_wall_top(
-                        track_y, station_height, station_bottom_extra, self.cab_mirror
+                        wall_track_y, station_height, station_bottom_extra, self.cab_mirror
                     )
-                    # At the station occupied by the train, show the adjacent
-                    # station wall in the direction of the newly selected cab.
-                    wall_station_index = station_index
-                    if station_index == player_station_index:
-                        adjacent_index = station_index + (-1 if self.cab_mirror else 1)
-                        if 0 <= adjacent_index < len(line.stations):
-                            wall_station_index = adjacent_index
                     station_texture = self.station_images.get(
-                        wall_station_index, self.legacy_station_image
+                        station_index, self.legacy_station_image
                     )
                     if station_texture is not None:
                         station_width = max(1, round(

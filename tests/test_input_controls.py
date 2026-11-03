@@ -47,13 +47,13 @@ class InputControllerTests(unittest.TestCase):
         self.press(pygame.K_p)
         self.assertEqual(self.train.reverser_position, 0)
 
-    def test_neutral_reverser_cancels_traction_command(self):
-        self.train.controller_notch = 3
-        self.press(pygame.K_o)
-        self.assertEqual(self.train.reverser_position, -1)
-        self.train.reverser_position = 0
-        self.press(pygame.K_p)
+    def test_reverser_stays_within_three_positions(self):
+        for _ in range(5):
+            self.press(pygame.K_p)
         self.assertEqual(self.train.reverser_position, 1)
+        for _ in range(5):
+            self.press(pygame.K_o)
+        self.assertEqual(self.train.reverser_position, -1)
 
     def test_parking_brake_is_preserved_on_k(self):
         self.press(pygame.K_k)

@@ -7,6 +7,15 @@ import struct
 import pygame
 
 from settings import ASSETS_DIR
+from core.train_models.oka import profile as oka_profile
+from core.train_models.nomernoy import profile as nomernoy_profile
+from core.train_models.rusich import profile as rusich_profile
+
+TRAIN_AUDIO_PROFILES = {
+    "81-760": oka_profile,
+    "81-717": nomernoy_profile,
+    "81-740": rusich_profile,
+}
 
 
 class AudioSystem:
@@ -29,6 +38,11 @@ class AudioSystem:
 
     def __init__(self, model_id="81-760"):
         self.model_id = str(model_id or "81-760")
+        profile = TRAIN_AUDIO_PROFILES.get(self.model_id)
+        if profile is None:
+            raise ValueError(f"No audio profile registered for train model {self.model_id!r}")
+        self.LOCO_PAIRS = profile.LOCO_PAIRS
+        self.CAR_PAIRS = profile.CAR_PAIRS
         self.sounds = {}
         self._group_speeds = {}
         self._last_position = None
@@ -100,7 +114,7 @@ class AudioSystem:
             if pygame.mixer.get_init() is None:
                 pygame.mixer.init()
 
-            rolling_dir = ASSETS_DIR / "sounds" / "train" / self.model_id
+            rolling_dir = ASSETS_DIR / "sounds" / "train" / profile.AUDIO_DIRECTORY
             try:
                 self.door_sound = pygame.mixer.Sound(str(rolling_dir / "doors" / "door_close.wav"))
             except (pygame.error, OSError):
@@ -262,8 +276,8 @@ class AudioSystem:
                 if hit == 1 and (group, 2) in self._station_joint_sounds
             })
 
-            loco_path = ASSETS_DIR / "trains" / self.model_id / f"{self.model_id}-loco.png"
-            car_path = ASSETS_DIR / "trains" / self.model_id / f"{self.model_id}-car.png"
+            loco_path = ASSETS_DIR / "trains" / profile.ASSET_DIRECTORY / profile.SPRITE_FILES["loco"]
+            car_path = ASSETS_DIR / "trains" / profile.ASSET_DIRECTORY / profile.SPRITE_FILES["car"]
             try:
                 self._loco_image_width = pygame.image.load(str(loco_path)).get_width()
             except (pygame.error, OSError):

@@ -23,7 +23,9 @@ class Camera:
 
     def pan(self, direction, train):
         # One key press moves the view by a small, predictable amount.
-        self.consist_offset_m += direction * max(2.0, 5.0 / self.zoom)
+        # The consist extends to the right of cab 1, but to the left of cab 2.
+        cab_orientation = -1 if getattr(train, "active_cab", 0) == 1 else 1
+        self.consist_offset_m += direction * cab_orientation * max(2.0, 5.0 / self.zoom)
         max_offset = max(0.0, train.consist_length_m - train.loco_length_m / 2)
         self.consist_offset_m = max(0.0, min(max_offset, self.consist_offset_m))
 
@@ -31,13 +33,16 @@ class Camera:
         # Train sprites face left. Increasing consist_offset moves the view
         # toward the cars, so the locomotive shifts toward the left edge.
         cab_world_x = route_length - train.position - train.loco_length_m
-        if getattr(train, "direction", 1) < 0:
-            # In reverse, the active cab is the rear locomotive at the far end
-            # of the consist. Follow that cab instead of the now-trailing front.
+        if getattr(train, "active_cab", 0) == 1:
+            # Cab selection changes which physical end is being followed.
+            # Reverser direction alone must never move the camera to the other cab.
             cab_world_x += train.consist_length_m - train.loco_length_m
         cab_world_x = max(0.0, cab_world_x)
+        consist_pan = (-self.consist_offset_m
+                       if getattr(train, "active_cab", 0) == 1
+                       else self.consist_offset_m)
         self.x = max(
             0.0,
             cab_world_x - self.focus_screen_x / self.pixels_per_metre
-            + self.consist_offset_m,
+            + consist_pan,
         )

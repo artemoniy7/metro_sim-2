@@ -1,9 +1,19 @@
-"""Train-model registry and factory.
+"""Train-model registry and lazy factory.
 
-Each supported train has its own adapter module. Shared route/consist mechanics
-remain in core.train.Train; model-specific traction, braking, pneumatics, audio
-and vehicle assets are progressively moved behind these adapters.
+The factory imports concrete adapters only when called. This avoids a package
+initialization cycle because the shared Train base imports model equipment
+submodules during its own initialization.
 """
-from core.train_models.registry import create_train, get_train_model_class
+
+
+def create_train(data=None):
+    from core.train_models.registry import create_train as factory
+    return factory(data)
+
+
+def get_train_model_class(model_id):
+    from core.train_models.registry import get_train_model_class as resolver
+    return resolver(model_id)
+
 
 __all__ = ["create_train", "get_train_model_class"]

@@ -16,9 +16,10 @@ class TrainModelRegistryTests(unittest.TestCase):
             get_train_model_class("81-717"),
             get_train_model_class("81-740"),
             get_train_model_class("81-760"),
+            get_train_model_class("81-777"),
         )
-        self.assertEqual(classes, (Train81717, Train81740, Train81760))
-        self.assertEqual(len(set(classes)), 3)
+        self.assertEqual(classes, (Train81717, Train81740, Train81760, Train81777))
+        self.assertEqual(len(set(classes)), 4)
         self.assertTrue(all(issubclass(cls, Train) for cls in classes))
 
     def test_factory_uses_model_id_from_configuration(self):

@@ -8,6 +8,10 @@ from core.train_models import create_train, get_train_model_class
 from core.train_models.model_81_717 import Train81717
 from core.train_models.model_81_740 import Train81740
 from core.train_models.model_81_760 import Train81760
+from core.train_models.oka import profile as oka_profile
+from core.train_models.nomernoy import profile as nomernoy_profile
+from core.train_models.rusich import profile as rusich_profile
+from core.train_models.shared.provisional_equipment import ProvisionalPneumaticSystem
 
 
 class TrainModelRegistryTests(unittest.TestCase):
@@ -59,6 +63,26 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertEqual(train.PRESSURE_DISPLAY_UNIT, "кгс/см²")
         self.assertTrue(train.electrodynamic_brake.available)
         self.assertGreater(train.electrodynamic_brake.calculate(60.0 / 3.6, -3), 0.0)
+
+
+    def test_visual_audio_profiles_do_not_reuse_oka_assets_or_geometry(self):
+        self.assertEqual(oka_profile.ASSET_DIRECTORY, "81-760")
+        self.assertEqual(nomernoy_profile.ASSET_DIRECTORY, "81-717")
+        self.assertEqual(rusich_profile.ASSET_DIRECTORY, "81-740")
+        self.assertTrue(oka_profile.DOOR_ANIMATION_SUPPORTED)
+        self.assertFalse(nomernoy_profile.DOOR_ANIMATION_SUPPORTED)
+        self.assertFalse(rusich_profile.DOOR_ANIMATION_SUPPORTED)
+        self.assertEqual(nomernoy_profile.LOCO_PAIRS, ())
+        self.assertEqual(rusich_profile.LOCO_PAIRS, ())
+        self.assertIsNone(nomernoy_profile.JOINT_PATTERN)
+        self.assertIsNone(rusich_profile.JOINT_PATTERN)
+
+    def test_provisional_pneumatics_apply_and_release_service_brake(self):
+        system = ProvisionalPneumaticSystem()
+        system.update(0.1, controller_notch=-3)
+        self.assertGreater(system.pressure_tc, 0.0)
+        system.update(0.1, controller_notch=0)
+        self.assertLess(system.pressure_tc, 1.0)
 
     def test_train_data_files_declare_matching_model_ids(self):
         data_dir = Path(__file__).resolve().parents[1] / "data" / "trains"

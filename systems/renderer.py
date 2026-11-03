@@ -114,7 +114,8 @@ class Renderer:
 
     def _draw_doors(self, sprite, source_image, vehicle_width, vehicle_height, is_loco, is_rear_cab=False):
         """Draw animated door leaves on passenger cars and both cab cars."""
-        if self.door_left_image is None or self.door_right_image is None:
+        if (not self.door_animation_supported or self.door_left_image is None
+                or self.door_right_image is None):
             return
 
         source_width, source_height = source_image.get_size()
@@ -180,7 +181,7 @@ class Renderer:
 
     def _draw_door_indicators(self, sprite, source_image, vehicle_width, vehicle_height,
                                is_loco, is_rear_cab, elapsed, active):
-        if not active:
+        if not active or not self.door_animation_supported:
             return
         # Half a second lit, half a second dark.
         if int(elapsed * 2.0) % 2 == 1:

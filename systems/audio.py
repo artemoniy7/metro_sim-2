@@ -961,6 +961,8 @@ class AudioSystem:
         if position <= previous_position:
             return
 
+        # Wheel-joint playback uses speed in m/s for volume and sound selection.
+        speed = abs(train.speed)
         camera_offset = getattr(camera, "consist_offset_m", 0.0)
         loco_distance = abs(camera_offset)
         for pair_index, pair in enumerate(self.LOCO_PAIRS):

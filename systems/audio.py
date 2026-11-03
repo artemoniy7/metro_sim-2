@@ -916,12 +916,34 @@ class AudioSystem:
                 self._tunnel_curve_channel.stop()
             self._tunnel_curve_volume = 0.0
 
-    def update(self, train, dt, camera=None, in_tunnel=False):
-        speed = abs(train.speed)
+    def _stop_motion_sounds(self):
+        """Stop every sound tied to traction or physical train movement."""
+        for channel in (
+            list(self.rolling_channels)
+            + list(self.engine_channels)
+            + list(self._extra_engine_channels)
+        ):
+            if channel is not None:
+                channel.stop()
+        if self._tunnel_curve_channel is not None:
+            self._tunnel_curve_channel.stop()
+        self._engine_volumes = [0.0, 0.0, 0.0]
+        self._tunnel_curve_volume = 0.0
+        self._chopper_was_active = False
+        self._high_component_was_active = False
+
+    def _update_motion_sounds(self, train, dt, in_tunnel=False):
+        """Neutral reverser means no rolling, traction, or tunnel-running audio."""
+        if getattr(train, "reverser_position", None) == 0:
+            self._stop_motion_sounds()
+            return
         self._update_tunnel_curve(train, dt, in_tunnel)
-        self._update_overspeed_warning(train)
-        self._update_rolling(speed)
+        self._update_rolling(abs(train.speed))
         self._update_engine(train, dt)
+
+    def update(self, train, dt, camera=None, in_tunnel=False):
+        self._update_motion_sounds(train, dt, in_tunnel)
+        self._update_overspeed_warning(train)
         if self.compressor_supported:
             self._update_compressor(train)
         self._update_brakes(train, dt)

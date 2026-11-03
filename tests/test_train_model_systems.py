@@ -76,6 +76,9 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertEqual(rusich_profile.LOCO_PAIRS, ())
         self.assertIsNone(nomernoy_profile.JOINT_PATTERN)
         self.assertIsNone(rusich_profile.JOINT_PATTERN)
+        self.assertTrue(oka_profile.COMPRESSOR_SUPPORTED)
+        self.assertFalse(nomernoy_profile.COMPRESSOR_SUPPORTED)
+        self.assertFalse(rusich_profile.COMPRESSOR_SUPPORTED)
 
     def test_provisional_pneumatics_apply_and_release_service_brake(self):
         system = ProvisionalPneumaticSystem()

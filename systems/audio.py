@@ -1,4 +1,4 @@
-"""Randomized 81-760 rail-joint sounds and train audio."""
+"""Model-specific train audio and randomized rail-joint sounds."""
 import math
 import random
 import re
@@ -43,6 +43,7 @@ class AudioSystem:
             raise ValueError(f"No audio profile registered for train model {self.model_id!r}")
         self.LOCO_PAIRS = profile.LOCO_PAIRS
         self.CAR_PAIRS = profile.CAR_PAIRS
+        self.compressor_supported = bool(profile.COMPRESSOR_SUPPORTED)
         self.sounds = {}
         self._group_speeds = {}
         self._last_position = None
@@ -568,7 +569,7 @@ class AudioSystem:
             self.overspeed_ring_active = False
 
     def _update_compressor(self, train):
-        """Run the 81-760 compressor below 7 kgf/cm² and stop after recovery."""
+        """Run the selected model compressor when its audio profile supports it."""
         channel = self.compressor_channel
         if channel is None:
             return
@@ -921,7 +922,8 @@ class AudioSystem:
         self._update_overspeed_warning(train)
         self._update_rolling(speed)
         self._update_engine(train, dt)
-        self._update_compressor(train)
+        if self.compressor_supported:
+            self._update_compressor(train)
         self._update_brakes(train, dt)
         if not self.sounds:
             return

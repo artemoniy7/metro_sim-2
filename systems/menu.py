@@ -36,7 +36,7 @@ class MainMenu:
                          or str(data.get("line_number", "")) == str(item.get("number", "")))):
                 self.available_lines.append((item, path, data))
         self.train_options = []
-        for filename in ("81-760.json", "81-717.json", "81-740.json"):
+        for filename in ("81-760.json", "81-717.json", "81-740.json", "81-777.json"):
             path = DATA / "trains" / filename
             if path.is_file():
                 data = self._read_json(path, {})

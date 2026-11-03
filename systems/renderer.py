@@ -547,7 +547,13 @@ class Renderer:
                     pygame.draw.rect(surface, (79, 101, 70), (sx, ground_y, 4, max(1, track_y-ground_y)))
                 elif any(abs(route_position - float(station.get("position", 0))) <= float(station.get("length_m", 155)) / 2 for station in line.stations):
                     track_y = rail_y_at(sx)
-                    pygame.draw.rect(surface, (142, 24, 34), (sx, track_y - tunnel_height, 4, tunnel_height + 20))
+                    station_wall_top = self._station_wall_top(
+                        track_y, tunnel_height, 0, self.cab_mirror
+                    )
+                    pygame.draw.rect(
+                        surface, (142, 24, 34),
+                        (sx, station_wall_top, 4, tunnel_height + 20)
+                    )
 
         self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 

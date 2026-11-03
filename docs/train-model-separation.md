@@ -1,70 +1,76 @@
 # Train model separation and completion checklist
 
-## Architecture rule
+## Architecture
 
-Every playable vehicle must be selected through `core.train_models.create_train()`.
-The registry maps a stable model ID to a dedicated adapter module. Unknown model
-IDs must raise an error; they must never silently inherit another model's setup.
+Every playable vehicle is created through `core.train_models.create_train()`.
+The registry selects a dedicated adapter by explicit `model_id`; mismatched or
+unknown IDs fail immediately.
 
-Shared code belongs in `core.train.Train` only when it represents genuinely
-common simulation mechanics (route position, consist geometry, speed state,
-ALS-ARS integration and common game interfaces). Model-specific equipment and
-behaviour belong in the corresponding `core/train_models/model_<id>.py` module
-and its dedicated equipment modules.
+`core.train.Train` now owns only shared consist/route mechanics, speed state,
+ALS-ARS integration and common game interfaces. It receives equipment classes
+from each model adapter:
+
+- pneumatic equipment;
+- electrodynamic brake;
+- traction response;
+- pressure display units and brake-transition thresholds.
+
+Each model also has its own renderer and audio profile. Missing model assets are
+not silently replaced with another train's sprites or sounds.
 
 ## Current implementation
 
-- [x] Add a strict model registry for 81-717, 81-740 and 81-760.
-- [x] Route player, AI and opposing train construction through the registry.
-- [x] Dispatch AI trains using the player's selected model instead of always
-  forcing 81-760.
-- [x] Add regression tests for distinct adapters and unknown-model rejection.
-- [ ] Move each model's traction controller and traction physics into its own
-  implementation.
-- [ ] Give each model its own service-brake and emergency-brake implementation.
-- [ ] Give each model its own pneumatic/electrical equipment implementation.
-- [ ] Select train-specific audio profiles and asset directories.
-- [ ] Select train-specific sprites, doors, geometry and animation.
-- [ ] Validate all train JSON files against a schema and reject incomplete data.
-- [ ] Add model-by-model integration tests and playable acceptance checks.
+- [x] Strict registry and factory for 81-717, 81-740 and 81-760.
+- [x] Player, AI and opposing trains use the selected model adapter.
+- [x] Move the documented 81-760/761 pneumatic and electrodynamic-brake
+  implementations into `core/train_models/oka/`.
+- [x] Move the existing calibrated KATP-2 traction response into the Oka model.
+- [x] Keep compatibility imports in the former `core/pneumatics.py` and
+  `core/electrodynamic_brake.py` locations.
+- [x] Give 81-717 and 81-740 separate pneumatic, ED-brake and traction adapters.
+- [x] Use normalized, explicitly provisional equipment for 81-717 and 81-740;
+  do not reuse Oka pressure values or claim their ED behaviour is modelled.
+- [x] Add per-model sprite and audio profiles; select them after train creation.
+- [x] Disable unverified wheel-joint geometry and door animation for models
+  whose assets/geometry are not present.
+- [x] Declare and validate explicit model IDs in all train configuration files.
+- [x] Add regression tests for model dispatch, distinct equipment classes,
+  provisional-vs-documented systems and config consistency.
+- [ ] Replace 81-717 provisional equipment with source-verified systems.
+- [ ] Replace 81-740 provisional equipment with source-verified systems.
+- [ ] Add real 81-717 and 81-740 sprites, door geometry and audio recordings.
+- [ ] Add model-specific traction/braking integration and in-game acceptance tests.
 
-## Source and asset limitations found during the audit
+## Technical-source status
 
-### 81-760
+### 81-760/761 Ока
 
-The repository contains the 81-760/761 electrical and pneumatic implementation
-and the associated training-source documentation. This remains the only model
-whose detailed braking/equipment behaviour is currently documented in the
-project materials.
+The Oka model retains the project implementation derived from the supplied
+electrical and pneumatic training materials. The 1.22 m/s² ED calibration,
+air-flow rates and other game-tuned values remain identified as calibrations or
+approximations rather than certified manufacturer values.
 
-### 81-717 and 81-740
+### 81-717 Номерной and 81-740 Русич
 
-Separate adapters now exist, but their detailed physical/equipment models are
-not yet implemented. They intentionally retain the existing compatibility
-baseline rather than inventing unsupported technical values. The current project
-does not include their technical manuals.
+The project materials available for this task do not include their technical
+manuals. Their adapters therefore use normalized provisional pressure units
+and a conservative pneumatic-only braking fallback. Their current traction
+notch values remain the values already stored in their JSON files; these are
+not certified performance curves. The adapters are separate so verified
+equipment can replace each system without changing the other train models.
 
-### Graphics and sound
+## Asset behaviour
 
-The train sprite folders for 81-717 and 81-740 contain instructions/placeholders,
-not finished model sprites. The actual locomotive/car/door images are present
-for 81-760 only. The train-specific sound directory currently exists only for
-81-760. The renderer and audio system therefore still need explicit model
-selection and verified model-specific assets before those trains can be called
-visually/audio complete.
+- Oka uses only `assets/trains/81-760/` and
+  `assets/sounds/train/81-760/`.
+- Nomernoy uses only its `81-717` asset directories. No Oka fallback is used.
+- Rusich uses only its `81-740` asset directories. No Oka fallback is used.
+- If a model's files are absent, the renderer uses its generic car fallback and
+  its audio profile remains silent for missing optional recordings.
 
 ## Completion gate
 
-Do not mark a train as complete until all of the following are true:
-
-1. Its traction, coast and braking behaviour are implemented independently.
-2. Its electrical and pneumatic systems match available technical sources.
-3. Its HUD exposes only equipment that the model actually has.
-4. Its sounds and sprites come from that model's asset profile.
-5. AI and player trains use the same selected model implementation.
-6. Unit tests cover its operating modes and transitions.
-7. An in-game check confirms acceleration, stopping, doors, audio, rendering
-   and AI behaviour without regressions to other train models.
-
-Unknown technical values must be labelled as approximations or left pending;
-they must not be presented as manufacturer specifications.
+A model is not complete until its own technical sources, traction, service and
+emergency braking, pneumatic/electrical systems, controller behaviour, HUD,
+sprites, doors, sounds and AI operation have been checked together. Unknown
+technical values must remain labelled provisional.

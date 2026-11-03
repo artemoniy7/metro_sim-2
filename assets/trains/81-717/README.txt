@@ -1,1 +1,1 @@
-Place head.png, middle.png and tail.png sprite images for the 81-717 train here. Placeholder cars are drawn if sprites are absent.
+Place 81-717 model sprites here: 81-717-loco.png and 81-717-car.png. Door sprites may be added as 81-717-door-left.png and 81-717-door-right.png after their geometry is verified. Until then the renderer uses neutral placeholder cars and does not animate doors.

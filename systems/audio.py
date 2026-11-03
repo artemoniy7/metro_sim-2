@@ -1,4 +1,4 @@
-"""Randomized 81-760 rail-joint sounds and train audio."""
+"""Model-specific train audio and randomized rail-joint sounds."""
 import math
 import random
 import re
@@ -7,6 +7,15 @@ import struct
 import pygame
 
 from settings import ASSETS_DIR
+from core.train_models.oka import profile as oka_profile
+from core.train_models.nomernoy import profile as nomernoy_profile
+from core.train_models.rusich import profile as rusich_profile
+
+TRAIN_AUDIO_PROFILES = {
+    "81-760": oka_profile,
+    "81-717": nomernoy_profile,
+    "81-740": rusich_profile,
+}
 
 
 class AudioSystem:
@@ -27,7 +36,14 @@ class AudioSystem:
     LOCO_PAIRS = ((345, 621), (1763, 2003))
     CAR_PAIRS = ((193, 464), (1761, 2016))
 
-    def __init__(self):
+    def __init__(self, model_id="81-760"):
+        self.model_id = str(model_id or "81-760")
+        profile = TRAIN_AUDIO_PROFILES.get(self.model_id)
+        if profile is None:
+            raise ValueError(f"No audio profile registered for train model {self.model_id!r}")
+        self.LOCO_PAIRS = profile.LOCO_PAIRS
+        self.CAR_PAIRS = profile.CAR_PAIRS
+        self.compressor_supported = bool(profile.COMPRESSOR_SUPPORTED)
         self.sounds = {}
         self._group_speeds = {}
         self._last_position = None
@@ -99,7 +115,7 @@ class AudioSystem:
             if pygame.mixer.get_init() is None:
                 pygame.mixer.init()
 
-            rolling_dir = ASSETS_DIR / "sounds" / "train" / "81-760"
+            rolling_dir = ASSETS_DIR / "sounds" / "train" / profile.AUDIO_DIRECTORY
             try:
                 self.door_sound = pygame.mixer.Sound(str(rolling_dir / "doors" / "door_close.wav"))
             except (pygame.error, OSError):
@@ -219,10 +235,7 @@ class AudioSystem:
             sound_dir = rolling_dir / "joint"
             # New exterior recordings encode the recording speed in the filename:
             # joint_stl760_<group>_<hit>_<speed>.wav
-            pattern = re.compile(
-                r"joint_stl760_(\d+)_([12])_(\d+)\.(?:wav|mp3)$",
-                re.IGNORECASE,
-            )
+            pattern = re.compile(profile.JOINT_PATTERN or r"(?!)", re.IGNORECASE)
             for path in sorted(sound_dir.iterdir()):
                 match = pattern.fullmatch(path.name)
                 if not match:
@@ -243,10 +256,7 @@ class AudioSystem:
             })
 
             # Load the dedicated platform-joint recordings, including end variants.
-            station_pattern = re.compile(
-                r"joint_station_(?:end_)?(\d+)_([12])_fade\.wav$",
-                re.IGNORECASE,
-            )
+            station_pattern = re.compile(profile.STATION_JOINT_PATTERN or r"(?!)", re.IGNORECASE)
             for path in sorted(sound_dir.iterdir()):
                 match = station_pattern.fullmatch(path.name)
                 if not match:
@@ -261,8 +271,8 @@ class AudioSystem:
                 if hit == 1 and (group, 2) in self._station_joint_sounds
             })
 
-            loco_path = ASSETS_DIR / "trains" / "81-760" / "81-760-loco.png"
-            car_path = ASSETS_DIR / "trains" / "81-760" / "81-760-car.png"
+            loco_path = ASSETS_DIR / "trains" / profile.ASSET_DIRECTORY / profile.SPRITE_FILES["loco"]
+            car_path = ASSETS_DIR / "trains" / profile.ASSET_DIRECTORY / profile.SPRITE_FILES["car"]
             try:
                 self._loco_image_width = pygame.image.load(str(loco_path)).get_width()
             except (pygame.error, OSError):
@@ -559,7 +569,7 @@ class AudioSystem:
             self.overspeed_ring_active = False
 
     def _update_compressor(self, train):
-        """Run the 81-760 compressor below 7 kgf/cm² and stop after recovery."""
+        """Run the selected model compressor when its audio profile supports it."""
         channel = self.compressor_channel
         if channel is None:
             return
@@ -912,7 +922,8 @@ class AudioSystem:
         self._update_overspeed_warning(train)
         self._update_rolling(speed)
         self._update_engine(train, dt)
-        self._update_compressor(train)
+        if self.compressor_supported:
+            self._update_compressor(train)
         self._update_brakes(train, dt)
         if not self.sounds:
             return

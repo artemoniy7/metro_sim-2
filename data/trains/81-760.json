@@ -23,5 +23,6 @@
   "loco_length_m": 20,
   "car_length_m": 19,
   "length_m": 154,
-  "brake_response_delay_s": 0
+  "brake_response_delay_s": 0,
+  "model_id": "81-760"
 }

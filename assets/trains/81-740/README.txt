@@ -1,1 +1,1 @@
-Place Русич (81-740) train sprites here: head.png, middle.png and tail.png.
+Place 81-740 model sprites here: 81-740-loco.png and 81-740-car.png. Door sprites may be added as 81-740-door-left.png and 81-740-door-right.png after their geometry is verified. Until then the renderer uses neutral placeholder cars and does not animate doors.

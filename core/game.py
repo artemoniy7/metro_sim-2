@@ -18,7 +18,6 @@ class Game:
     def __init__(self, line_file=None, train_file=None, start_position=0.0, end_position=None):
         self.renderer = Renderer()
         self.controls = InputController()
-        self.audio = AudioSystem()
         line_path = DATA_DIR / "lines" / (line_file or "line_9.json")
         self.line_data = load_json(line_path, default={})
         line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 9)}")
@@ -27,6 +26,11 @@ class Game:
         track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
         self.track_network = TrackNetwork(self.line, track_data)
         self.renderer.configure_line_station_sprites(line_id)
+        train_path = DATA_DIR / "trains" / (train_file or "81-760.json")
+        train_data = load_json(train_path, default={})
+        self.train = create_train(train_data)
+        self.renderer.configure_train_model(self.train)
+        self.audio = AudioSystem(model_id=self.train.model_id)
         configure_station_joints = getattr(self.audio, "configure_station_joint_sounds", None)
         if callable(configure_station_joints):
             configure_station_joints(self.line.stations)
@@ -34,9 +38,6 @@ class Game:
         configure_announcements = getattr(self.audio, "configure_station_announcements", None)
         if callable(configure_announcements):
             configure_announcements(len(self.line.stations), line_id)
-        train_path = DATA_DIR / "trains" / (train_file or "81-760.json")
-        train_data = load_json(train_path, default={})
-        self.train = create_train(train_data)
         self.line_max_speed = self.train.max_speed
         self.train.position = max(0.0, float(start_position))
         self.end_position = float(end_position) if end_position is not None else self.line.path.total_length

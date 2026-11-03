@@ -1,0 +1,15 @@
+"""Visual/audio profile for 81-760/761."""
+TRAIN_MODEL_ID = "81-760"
+DISPLAY_NAME = "Ока"
+ASSET_DIRECTORY = "81-760"
+SPRITE_FILES = {
+    "loco": "81-760-loco.png", "car": "81-760-car.png",
+    "door_left": "81-760-door-left.png", "door_right": "81-760-door-right.png",
+}
+AUDIO_DIRECTORY = "81-760"
+DOOR_ANIMATION_SUPPORTED = True
+LOCO_PAIRS = ((345, 621), (1763, 2003))
+CAR_PAIRS = ((193, 464), (1761, 2016))
+JOINT_PATTERN = r"joint_stl760_(\d+)_([12])_(\d+)\.(?:wav|mp3)$"
+STATION_JOINT_PATTERN = r"joint_station_(?:end_)?(\d+)_([12])_fade\.wav$"
+COMPRESSOR_SUPPORTED = True

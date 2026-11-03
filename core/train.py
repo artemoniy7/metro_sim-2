@@ -1,15 +1,25 @@
 """Playable train consist with traction, electrodynamic and pneumatic brakes."""
 from core.wagon import Wagon
 from core.als_ars import AlsArs
-from core.pneumatics import PneumaticSystem
-from core.electrodynamic_brake import ElectrodynamicBrake
+from core.train_models.oka.pneumatics import PneumaticSystem as OkaPneumaticSystem
+from core.train_models.oka.electrodynamic_brake import ElectrodynamicBrake as OkaElectrodynamicBrake
+from core.train_models.oka.traction import KATP2Traction
 
 
 class Train:
+    """Shared consist/route mechanics; equipment is injected by each model adapter."""
+    model_id = "81-760"
+    PNEUMATIC_SYSTEM_CLASS = OkaPneumaticSystem
+    ELECTRODYNAMIC_BRAKE_CLASS = OkaElectrodynamicBrake
+    TRACTION_SYSTEM_CLASS = KATP2Traction
+    ED_TO_PNEUMATIC_SPEED_KMH = 7.0
+    PRESSURE_DISPLAY_UNIT = "кгс/см²"
+    PARKING_BRAKE_RELEASE_PRESSURE = 6.3
+
     def __init__(self, data=None):
         data = data or {}
-        self.name = data.get("name", "81-760")
-        self.display_name = data.get("display_name", self.name)
+        self.name = data.get("name", self.model_id)
+        self.display_name = data.get("display_name", getattr(self, "model_display_name", self.name))
         self.max_speed = float(data.get("max_speed_kmh", 90)) / 3.6
         self.acceleration = float(data.get("acceleration_mps2", 0.9))
         self.service_brake = float(data.get("brake_mps2", 1.15))
@@ -40,13 +50,14 @@ class Train:
         self.OVERSPEED_GRACE_S = 3.6
         self.SPEED_MARGIN_KMH = 1.0
         self.acceleration_state = 0.0
-        self.pneumatics = PneumaticSystem(
+        self.pneumatics = self.PNEUMATIC_SYSTEM_CLASS(
             loaded=bool(data.get("loaded", False))
         )
         self.pneumatics.set_load_fraction(float(data.get("load_fraction", 0.0)))
-        self.electrodynamic_brake = ElectrodynamicBrake(
-            data.get("electrodynamic_brake_max_mps2", ElectrodynamicBrake.MAX_SERVICE_DECELERATION)
+        self.electrodynamic_brake = self.ELECTRODYNAMIC_BRAKE_CLASS(
+            data.get("electrodynamic_brake_max_mps2", self.ELECTRODYNAMIC_BRAKE_CLASS.MAX_SERVICE_DECELERATION)
         )
+        self.traction_system = self.TRACTION_SYSTEM_CLASS(data)
         self.parking_brake_active = False
         self._brake_command_timer = 0.0
         self._was_brake_commanded = False
@@ -160,9 +171,9 @@ class Train:
         self._was_brake_commanded = brake_commanded
         self.brake_release_timer = max(0.0, self.brake_release_timer - dt)
 
-        # The electric brake is the normal service brake. It is available down
-        # to about 5 km/h; below that it is replaced by BУФТ-controlled friction
-        # braking. On electric-brake failure, the pneumatic brake takes over.
+        # Ask the selected model's electric-brake implementation. Models whose
+        # technical sources are still pending return zero here and use their
+        # explicitly provisional pneumatic fallback instead.
         ed_available = (not self.electrodynamic_brake_failed
                         and self.electrodynamic_brake.available)
         ed_deceleration = 0.0
@@ -180,7 +191,7 @@ class Train:
         speed_kmh = abs(self.speed) * 3.6
         low_speed_replacement = (
             self.controller_notch if self.controller_notch < 0
-            and (speed_kmh <= 7.0 or not ed_available) else 0
+            and (speed_kmh <= self.ED_TO_PNEUMATIC_SPEED_KMH or not ed_available) else 0
         )
         hold_brake = (
             self.speed <= 1.8 / 3.6 and self.controller_notch <= 0
@@ -195,15 +206,16 @@ class Train:
             hold_brake=hold_brake,
         )
 
-        # Pressure is load-compensated by the pneumatic authoring model. The
-        # normalized cylinder pressure therefore maps to a calibrated service
-        # deceleration rather than applying an unscaled force to every load.
+        # Convert the selected model's cylinder pressure into its configured
+        # service-brake contribution. Provisional models use normalized units;
+        # Oka uses its documented circuit model plus game calibration.
         friction_fraction = (
             self.pressure_tc / max(0.01, self.pneumatics.max_tc_pressure)
         )
         friction_deceleration = self.service_brake * friction_fraction
+        parking_threshold = max(0.01, float(self.PARKING_BRAKE_RELEASE_PRESSURE))
         parking_fraction = max(
-            0.0, min(1.0, (6.3 - self.pneumatics.pressure_parking) / 6.3)
+            0.0, min(1.0, (parking_threshold - self.pneumatics.pressure_parking) / parking_threshold)
         )
         parking_deceleration = self.service_brake * parking_fraction
 
@@ -237,11 +249,9 @@ class Train:
                 if (self.controller_notch > 0 and traction_released
                         and not self.pneumatics.parking_brake_applied
                         and not self.doors_open and self.brake_release_timer <= 0.0):
-                    index = min(len(self.traction_notches) - 1, self.controller_notch - 1)
-                    traction_acceleration = self.traction_notches[index]
-                    speed_kmh = self.speed * 3.6
-                    high_speed_fade = max(0.0, min(1.0, (speed_kmh - 40.0) / 40.0))
-                    traction_acceleration *= 1.0 - 0.92 * high_speed_fade
+                    traction_acceleration = self.traction_system.acceleration(
+                        self.controller_notch, self.speed, self.traction_notches
+                    )
                     target_acceleration += traction_acceleration
                 if self.speed >= permitted_speed:
                     target_acceleration = min(0.0, target_acceleration)

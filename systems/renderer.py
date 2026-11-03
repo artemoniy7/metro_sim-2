@@ -477,6 +477,10 @@ class Renderer:
                 elif station_index is not None:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
+                    station_wall_top = (
+                        track_y - station_bottom_extra if self.cab_mirror
+                        else track_y - station_height + station_bottom_extra
+                    )
                     station_texture = self.station_images.get(
                         station_index, self.legacy_station_image
                     )
@@ -503,7 +507,7 @@ class Renderer:
                             )
                             surface.blit(
                                 station_slice,
-                                (sx, track_y - station_height + station_bottom_extra)
+                                (sx, station_wall_top)
                             )
                         if slice_width < strip_width:
                             extra_width = min(strip_width - slice_width, station_width)
@@ -512,12 +516,12 @@ class Renderer:
                             )
                             surface.blit(
                                 station_slice,
-                                (sx + slice_width, track_y - station_height + station_bottom_extra)
+                                (sx + slice_width, station_wall_top)
                             )
                     else:
                         pygame.draw.rect(
                             surface, (142, 24, 34),
-                            (sx, track_y - station_height, strip_width, station_height + 20)
+                            (sx, station_wall_top, strip_width, station_height + 20)
                         )
                 else:
                     src_x = int((world_x * scale) % tunnel_width)
@@ -583,7 +587,7 @@ class Renderer:
         loco_height = loco_scaled.get_height() if loco_scaled is not None else 48
         reverse_player = getattr(train, "direction", 1) < 0
         player_wagons = reversed(train.wagons) if reverse_player else train.wagons
-        vehicle_x = (loco_x - (train.consist_length_m - train.loco_length_m) * scale
+        vehicle_x = (loco_x + (train.consist_length_m - train.loco_length_m) * scale
                      if reverse_player else loco_x)
         travelled = 0.0
         for wagon in player_wagons:

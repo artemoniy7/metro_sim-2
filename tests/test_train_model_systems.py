@@ -54,7 +54,7 @@ class TrainModelRegistryTests(unittest.TestCase):
         )
         for attribute in ("pneumatics", "electrodynamic_brake", "traction_system"):
             with self.subTest(component=attribute):
-                self.assertEqual(len({type(getattr(train, attribute)) for train in trains}), 3)
+                self.assertEqual(len({type(getattr(train, attribute)) for train in trains}), 4)
 
     def test_provisional_models_do_not_claim_oka_pressure_units_or_ed(self):
         for model_id in ("81-717", "81-740", "81-777"):

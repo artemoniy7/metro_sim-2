@@ -58,13 +58,16 @@ class Game:
         self.bot_trains = []
         self.opposing_trains = []
         self.bot_dispatch_interval = 120.0
-        self.bots_enabled = self.train.position <= 0.01
+        first_station_position = float(
+            self.line.stations[0].get("position", 0.0)
+        ) if self.line.stations else 0.0
+        self.bots_enabled = self.train.position <= first_station_position + 0.01
         self.bot_dispatch_timer = 0.0
         self.bot_number = 0
         # Put the first AI train into service immediately; subsequent trains
-        # are dispatched every two minutes.
-        # AI traffic is enabled only when starting from the line origin.
-        if self.train.position <= 0.01:
+        # are dispatched every two minutes. The first station may be offset
+        # from path position zero when a terminal tail track is modelled.
+        if self.bots_enabled:
             self._dispatch_bot()
         # A few opposing services make the second track active at several
         # points along the route without overcrowding the view.

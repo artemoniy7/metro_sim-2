@@ -84,8 +84,8 @@ class TrackNetworkTests(unittest.TestCase):
                 {"id": "outer_b", "offset_m": 6, "direction": 1},
             ],
             "switches": [
-                {"id": "A", "position": 40, "lane_pairs": [[0, 1], [1, 2], [2, 3]]},
-                {"id": "B", "position": 250, "lane_pairs": [[0, 1], [1, 2], [2, 3]]},
+                {"id": "A", "position": 40, "lane_pairs": [[0, 1], [2, 3]]},
+                {"id": "B", "position": 250, "lane_pairs": [[0, 2], [1, 3]]},
             ],
         })
         self.assertEqual(len(network.lanes), 4)

@@ -908,7 +908,8 @@ class Renderer:
             getattr(self, "selected_door_side", None), "НЕ ВЫБРАНЫ"
         )
         controls_text = ("W/S контроллер   Shift+A/D выбор дверей   A/D открыть   V закрыть"
-                         "   0 кабина   P/O реверс   I объявления   колесо — масштаб")
+                         "   0 кабина   P/O реверс   I объявления   Shift+Q/E — выбор оборотного пути"
+                         "   колесо — масштаб")
         surface.blit(self.small_font.render(
             f"Кабина {cab_label} | Реверс: {reverser_label} | Двери: {door_side}",
             True, (205, 210, 218)

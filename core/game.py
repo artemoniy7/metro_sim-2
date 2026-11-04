@@ -42,7 +42,14 @@ class Game:
         if callable(configure_announcements):
             configure_announcements(len(self.line.stations), line_id)
         self.line_max_speed = self.train.max_speed
-        self.train.position = max(0.0, float(start_position))
+        # Line 15 has a 450 m terminal stub before Nekrasovka in route
+        # coordinates. A default start_position of zero therefore points to
+        # the dead-end, not to the first platform. Keep station chainages
+        # unchanged and spawn the default service at Nekrasovka itself.
+        initial_position = max(0.0, float(start_position))
+        if line_id == "line_15" and initial_position <= 0.01 and self.line.stations:
+            initial_position = float(self.line.stations[0].get("position", 0.0))
+        self.train.position = min(self.line.path.total_length, initial_position)
         self.end_position = float(end_position) if end_position is not None else self.line.path.total_length
         # Close view of the locomotive, with mouse-wheel zoom and consist panning.
         display_surface = pygame.display.get_surface()

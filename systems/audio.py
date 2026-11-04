@@ -197,7 +197,7 @@ class AudioSystem:
             brake_dir = rolling_dir / "brake"
             try:
                 self.brake_release_sound = pygame.mixer.Sound(
-                    str(brake_dir / "013_release.wav")
+                    str(brake_dir / "013_rd_release_low.wav")
                 )
             except (pygame.error, OSError):
                 self.brake_release_sound = None
@@ -576,12 +576,16 @@ class AudioSystem:
         if channel is None:
             return
 
-        pressure = float(getattr(train, "pressure_nm", 8.0))
+        # Follow the pneumatic controller's hysteresis state, not an arbitrary
+        # pressure threshold: the 81-760 source specifies start at 6.5±0.2 atm
+        # and stop at 8.0±0.2 atm (ДД7 / «Витязь-М»).
+        pneumatics = getattr(train, "pneumatics", None)
+        compressor_running = bool(getattr(pneumatics, "compressor_active", False))
         start_sound = self.compressor_sounds.get("start")
         loop_sound = self.compressor_sounds.get("loop")
         end_sound = self.compressor_sounds.get("end")
 
-        if pressure < 7.5:
+        if compressor_running:
             if not self._compressor_active:
                 self._compressor_active = True
                 self._compressor_starting = start_sound is not None

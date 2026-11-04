@@ -181,12 +181,21 @@ class Renderer:
         # Half a second lit, half a second dark.
         if int(elapsed * 2.0) % 2 == 1:
             return
+        profile = self.train_render_profile
         source_width, source_height = source_image.get_size()
         sx = vehicle_width / source_width
         sy = vehicle_height / source_height
-        points = ((463, 75), (1030, 75), (1525, 75), (1990, 75)) if is_loco else (
-            (258, 65), (815, 65), (1349, 65), (1904, 65)
-        )
+        if is_loco:
+            openings = getattr(profile, "LOCO_DOOR_OPENINGS", (
+                (373, 81, 553, 322), (939, 81, 1119, 322),
+                (1433, 81, 1613, 322), (1897, 81, 2077, 322),
+            ))
+        else:
+            openings = getattr(profile, "CAR_DOOR_OPENINGS", (
+                (171, 70, 346, 298), (725, 70, 900, 298),
+                (1261, 70, 1436, 298), (1815, 70, 1990, 298),
+            ))
+        points = tuple(((x1 + x2) / 2, y1 - 8) for x1, y1, x2, _ in openings)
         if is_rear_cab:
             points = tuple((source_width - x, y) for x, y in reversed(points))
         radius = max(2, round(7 * min(sx, sy)))

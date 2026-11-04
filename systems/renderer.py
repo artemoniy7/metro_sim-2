@@ -251,7 +251,13 @@ class Renderer:
             sleeper_color = tuple(lane.get("sleeper", (88, 83, 76)))
             ballast = tuple(lane.get("ballast", (39, 43, 51)))
             previous = None
+            lane_start = float(lane.get("start_m", 0.0))
+            lane_end = float(lane.get("end_m", line.path.total_length))
             for sx in range(0, width, 4):
+                route_position = line.path.total_length - (camera_x + sx / scale)
+                if not lane_start <= route_position <= lane_end:
+                    previous = None
+                    continue
                 sy = rail_y_at(sx) + offset
                 if previous is not None:
                     px, py = previous
@@ -264,25 +270,38 @@ class Renderer:
             while sleeper < last_world:
                 sx = round((sleeper - camera_x) * scale)
                 if 0 <= sx < width:
-                    sy = rail_y_at(sx) + offset
-                    pygame.draw.line(surface, sleeper_color, (sx, sy - 1),
-                                     (sx, sy + 14), 3)
+                    route_position = line.path.total_length - sleeper
+                    if lane_start <= route_position <= lane_end:
+                        sy = rail_y_at(sx) + offset
+                        pygame.draw.line(surface, sleeper_color, (sx, sy - 1),
+                                         (sx, sy + 14), 3)
                 sleeper += spacing_m
             for sx in range(0, width, 4):
-                ex = min(width, sx + 4)
+                route_position = line.path.total_length - (camera_x + sx / scale)
+                if not lane_start <= route_position <= lane_end:
+                    continue
+                ex = min(width - 1, sx + 4)
+                next_route_position = line.path.total_length - (camera_x + ex / scale)
+                if not lane_start <= next_route_position <= lane_end:
+                    continue
                 y1 = rail_y_at(sx) + offset
-                y2 = rail_y_at(min(width - 1, ex)) + offset
+                y2 = rail_y_at(ex) + offset
                 pygame.draw.line(surface, rail_top, (sx, y1 + 1), (ex, y2 + 1), 4)
                 pygame.draw.line(surface, rail_side, (sx, y1 + 7), (ex, y2 + 7), 2)
 
-        # Smooth connectors between adjacent paths; all remain on one plane.
+        # Draw only the crossover pairs explicitly present at each switch.
         for switch in network.switches:
             start = max(0.0, switch["position"] - network.switch_length / 2)
             end = min(line.path.total_length, switch["position"] + network.switch_length / 2)
             if end <= start:
                 continue
-            for lane_a in range(len(network.lanes) - 1):
-                lane_b = lane_a + 1
+            lane_pairs = switch.get(
+                "lane_pairs", [(lane, lane + 1) for lane in range(len(network.lanes) - 1)]
+            )
+            for lane_a, lane_b in lane_pairs:
+                if not (0 <= lane_a < len(network.lanes)
+                        and 0 <= lane_b < len(network.lanes)):
+                    continue
                 rail_one, rail_two = [], []
                 for step in range(17):
                     t = step / 16
@@ -889,7 +908,8 @@ class Renderer:
             getattr(self, "selected_door_side", None), "НЕ ВЫБРАНЫ"
         )
         controls_text = ("W/S контроллер   Shift+A/D выбор дверей   A/D открыть   V закрыть"
-                         "   0 кабина   P/O реверс   I объявления   колесо — масштаб")
+                         "   0 кабина   P/O реверс   I объявления   Shift+Q/E — выбор оборотного пути"
+                         "   колесо — масштаб")
         surface.blit(self.small_font.render(
             f"Кабина {cab_label} | Реверс: {reverser_label} | Двери: {door_side}",
             True, (205, 210, 218)

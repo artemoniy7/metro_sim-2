@@ -92,6 +92,9 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertEqual(len(network.switches), 2)
         self.assertAlmostEqual(network.switches[1]["position"] - network.switches[0]["position"],
                                network.switch_length + 170)
+        train = FakeTrain(370, track_index=3, direction=-1)
+        self.assertTrue(network.request_lane_change(train, -1, [train], target_lane=1))
+        self.assertEqual(train.track_change["to"], 1)
 
     def test_reverse_train_can_take_bidirectional_switch(self):
         network = TrackNetwork(FakeLine(), {

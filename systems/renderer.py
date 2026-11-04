@@ -68,6 +68,7 @@ class Renderer:
         profile = TRAIN_RENDER_PROFILES.get(model_id)
         if profile is None:
             raise ValueError(f"No renderer profile registered for train model {model_id!r}")
+        self.train_render_profile = profile
         train_dir = ASSETS_DIR / "trains" / profile.ASSET_DIRECTORY
         self.loco_image = self._load_sprite(train_dir / profile.SPRITE_FILES["loco"])
         self.car_image = self._load_sprite(train_dir / profile.SPRITE_FILES["car"])
@@ -119,71 +120,59 @@ class Renderer:
         return cache[key]
 
     def _draw_doors(self, sprite, source_image, vehicle_width, vehicle_height, is_loco, is_rear_cab=False):
-        """Draw animated door leaves on passenger cars and both cab cars."""
+        """Draw animated door leaves using the selected train's source coordinates."""
         if (not self.door_animation_supported or self.door_left_image is None
                 or self.door_right_image is None):
             return
 
+        profile = self.train_render_profile
         source_width, source_height = source_image.get_size()
         sx = vehicle_width / source_width
         sy = vehicle_height / source_height
         amount = self.door_open_amount
 
         if is_loco:
-            # Door openings on the front cab sprite.
-            openings = ((373, 81, 553, 322), (939, 81, 1119, 322),
-                        (1433, 81, 1613, 322), (1897, 81, 2077, 322))
-            if is_rear_cab:
-                openings = tuple(
-                    (source_width - x2, y1, source_width - x1, y2)
-                    for x1, y1, x2, y2 in reversed(openings)
-                )
-            for x1, y1, x2, y2 in openings:
-                door_height = max(1, round((y2 - y1) * sy))
-                left_width = max(1, round(91 * sx))
-                right_width = max(1, round(90 * sx))
-                left_door = pygame.transform.smoothscale(
-                    self.door_left_image, (left_width, door_height)
-                )
-                right_door = pygame.transform.smoothscale(
-                    self.door_right_image, (right_width, door_height)
-                )
-                sprite.blit(left_door, (
-                    round(x1 * sx - left_door.get_width() * amount),
-                    round(y1 * sy)
-                ))
-                sprite.blit(right_door, (
-                    round((x2 - 90) * sx + right_door.get_width() * amount),
-                    round(y1 * sy)
-                ))
+            openings = getattr(profile, "LOCO_DOOR_OPENINGS", (
+                (373, 81, 553, 322), (939, 81, 1119, 322),
+                (1433, 81, 1613, 322), (1897, 81, 2077, 322),
+            ))
         else:
-            # Passenger-car door locations: upper and lower x coordinates
-            # supplied for each opening. The two leaves slide apart from
-            # the opening's upper/lower x positions as the doors open.
-            top_xs = (171, 725, 1261, 1815)
-            bottom_xs = (346, 900, 1436, 1990)
-            if is_rear_cab:
-                top_xs = tuple(source_width - x for x in reversed(bottom_xs))
-                bottom_xs = tuple(source_width - x for x in reversed(top_xs))
-            door_y = 70
-            door_height = max(1, round((298 - door_y) * sy))
-            left_width = max(1, round(90 * sx))
-            right_width = max(1, round(90 * sx))
-            left_door = pygame.transform.smoothscale(
-                self.door_left_image, (left_width, door_height)
+            openings = getattr(profile, "CAR_DOOR_OPENINGS", (
+                (171, 70, 346, 298), (725, 70, 900, 298),
+                (1261, 70, 1436, 298), (1815, 70, 1990, 298),
+            ))
+
+        if is_rear_cab:
+            openings = tuple(
+                (source_width - x2, y1, source_width - x1, y2)
+                for x1, y1, x2, y2 in reversed(openings)
             )
-            right_door = pygame.transform.smoothscale(
-                self.door_right_image, (right_width, door_height)
-            )
-            for top_x, bottom_x in zip(top_xs, bottom_xs):
-                sprite.blit(left_door, (
-                    round(top_x * sx - left_door.get_width() * amount),
-                    round(door_y * sy)
-                ))
-                sprite.blit(right_door, (
-                    round((bottom_x - 90) * sx + right_door.get_width() * amount),
-                    round(door_y * sy)
-                ))
+
+        left_source_size = getattr(profile, "DOOR_LEFT_SIZE", (91, 225))
+        right_source_size = getattr(profile, "DOOR_RIGHT_SIZE", (90, 225))
+        left_size = (
+            max(1, round(left_source_size[0] * sx)),
+            max(1, round(left_source_size[1] * sy)),
+        )
+        right_size = (
+            max(1, round(right_source_size[0] * sx)),
+            max(1, round(right_source_size[1] * sy)),
+        )
+        left_door = pygame.transform.smoothscale(self.door_left_image, left_size)
+        right_door = pygame.transform.smoothscale(self.door_right_image, right_size)
+
+        for x1, y1, x2, y2 in openings:
+            # The leaves slide away from the opening: left leaf to the left,
+            # right leaf to the right. Coordinates are in the original atlas.
+            sprite.blit(left_door, (
+                round(x1 * sx - left_door.get_width() * amount),
+                round(y1 * sy),
+            ))
+            sprite.blit(right_door, (
+                round((x2 - right_source_size[0]) * sx
+                      + right_door.get_width() * amount),
+                round(y1 * sy),
+            ))
 
     def _draw_door_indicators(self, sprite, source_image, vehicle_width, vehicle_height,
                                is_loco, is_rear_cab, elapsed, active):
@@ -192,12 +181,21 @@ class Renderer:
         # Half a second lit, half a second dark.
         if int(elapsed * 2.0) % 2 == 1:
             return
+        profile = self.train_render_profile
         source_width, source_height = source_image.get_size()
         sx = vehicle_width / source_width
         sy = vehicle_height / source_height
-        points = ((463, 75), (1030, 75), (1525, 75), (1990, 75)) if is_loco else (
-            (258, 65), (815, 65), (1349, 65), (1904, 65)
-        )
+        if is_loco:
+            openings = getattr(profile, "LOCO_DOOR_OPENINGS", (
+                (373, 81, 553, 322), (939, 81, 1119, 322),
+                (1433, 81, 1613, 322), (1897, 81, 2077, 322),
+            ))
+        else:
+            openings = getattr(profile, "CAR_DOOR_OPENINGS", (
+                (171, 70, 346, 298), (725, 70, 900, 298),
+                (1261, 70, 1436, 298), (1815, 70, 1990, 298),
+            ))
+        points = tuple(((x1 + x2) / 2, y1 - 8) for x1, y1, x2, _ in openings)
         if is_rear_cab:
             points = tuple((source_width - x, y) for x, y in reversed(points))
         radius = max(2, round(7 * min(sx, sy)))
@@ -370,7 +368,8 @@ class Renderer:
             frame_dt = max(0.0, min(0.1, elapsed - self.last_render_time))
         self.last_render_time = elapsed
         target_door_amount = 1.0 if doors_open else 0.0
-        door_step = frame_dt / 4.0
+        door_duration = max(0.01, float(getattr(self.train_render_profile, "DOOR_ANIMATION_DURATION_S", 4.0)))
+        door_step = frame_dt / door_duration
         if self.door_open_amount < target_door_amount:
             self.door_open_amount = min(target_door_amount, self.door_open_amount + door_step)
         elif self.door_open_amount > target_door_amount:

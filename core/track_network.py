@@ -103,13 +103,14 @@ class TrackNetwork:
                     f"{self.lanes[change['to']].get('label', 'Путь')}")
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
-    def request_lane_change(self, train, direction, trains):
+    def request_lane_change(self, train, direction, trains, target_lane=None):
         if getattr(train, "track_change", None):
             self.last_message = "Сначала завершите перевод"
             return False
         source = int(train.track_index)
-        target = source + (1 if direction > 0 else -1)
-        if target < 0 or target >= len(self.lanes):
+        target = (int(target_lane) if target_lane is not None
+                  else source + (1 if direction > 0 else -1))
+        if target == source or target < 0 or target >= len(self.lanes):
             self.last_message = "Соседнего пути нет"
             return False
         train_direction = -1 if int(getattr(train, "direction", 1)) < 0 else 1

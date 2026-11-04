@@ -120,7 +120,7 @@ class TrackNetwork:
             return False
         available = [
             switch for switch in self.switches
-            if (source, target) in switch.get("lane_pairs", [])
+            if tuple(sorted((source, target))) in switch.get("lane_pairs", [])
             and self.switch_length / 2 <=
                 (switch["position"] - float(train.position)) * train_direction
                 <= self.switch_window

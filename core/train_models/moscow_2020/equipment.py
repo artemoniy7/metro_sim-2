@@ -4,13 +4,13 @@ from core.train_models.shared.provisional_equipment import (
 )
 
 
-class YauzaPneumatics(ProvisionalPneumaticSystem):
+class Moscow2020Pneumatics(ProvisionalPneumaticSystem):
     """Normalized pneumatic fallback; not manufacturer pressure values."""
 
 
-class YauzaElectrodynamicBrake(ProvisionalElectrodynamicBrake):
+class Moscow2020ElectrodynamicBrake(ProvisionalElectrodynamicBrake):
     """ED braking remains disabled until its speed/force curve is sourced."""
 
 
-class YauzaTraction(ConfiguredTraction):
+class Moscow2020Traction(ConfiguredTraction):
     """Uses the provisional traction-notch curve from the train data file."""

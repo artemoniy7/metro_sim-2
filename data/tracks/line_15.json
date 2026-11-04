@@ -1,51 +1,75 @@
 {
-  "layout": "orthographic_parallel_tracks",
-  "description": "Два параллельных пути Некрасовской линии: главный путь в сторону Нижегородской и встречный путь в сторону Некрасовки.",
-  "main_lane": 1,
-  "first_switch_m": 900,
-  "switch_spacing_m": 1500,
-  "switch_length_m": 100,
+  "layout": "nekrasovka_terminal_turnback",
+  "description": "Два внешних главных пути и два внутренних оборотных пути за станцией Некрасовка. Между центрами стрелочных горловин внутренних путей 210 м; после вычета 40-метровых зон стрелок остаётся 170 м полезной длины.",
+  "main_lane": 3,
+  "switch_length_m": 40,
   "switch_window_m": 120,
   "lanes": [
     {
       "id": "opposing",
-      "label": "Встречный путь",
-      "offset_m": 4.0,
-      "rail_top": [
-        145,
-        151,
-        160
-      ],
-      "rail_side": [
-        76,
-        83,
-        93
-      ],
-      "sleeper": [
-        88,
-        83,
-        76
-      ],
-      "ballast": [
-        39,
-        43,
-        51
-      ],
-      "direction": -1,
-      "tint": [
-        255,
-        255,
-        255
-      ]
+      "label": "Главный путь (в сторону Некрасовки)",
+      "offset_m": -6,
+      "direction": -1
+    },
+    {
+      "id": "turnback_a",
+      "label": "Оборотный путь 1",
+      "offset_m": -2,
+      "direction": 0,
+      "start_m": 20,
+      "end_m": 270
+    },
+    {
+      "id": "turnback_b",
+      "label": "Оборотный путь 2",
+      "offset_m": 2,
+      "direction": 0,
+      "start_m": 20,
+      "end_m": 270
     },
     {
       "id": "main",
-      "label": "Главный путь",
-      "offset_m": 0,
+      "label": "Главный путь (от Некрасовки)",
+      "offset_m": 6,
       "direction": 1
     }
   ],
-  "station_switches": true,
-  "station_switch_interval": 4,
-  "switch_offset_from_station_m": 260
+  "switches": [
+    {
+      "id": "NK-T1",
+      "position": 40,
+      "lane_pairs": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ]
+    },
+    {
+      "id": "NK-T2",
+      "position": 250,
+      "lane_pairs": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ]
+    }
+  ]
 }

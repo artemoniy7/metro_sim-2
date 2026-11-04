@@ -21,6 +21,7 @@ class Game:
         line_path = DATA_DIR / "lines" / (line_file or "line_9.json")
         self.line_data = load_json(line_path, default={})
         line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 9)}")
+        self.line_id = line_id
         # Start directly on the selected line, at the selected station.
         self.line = Line(self.line_data)
         track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
@@ -154,10 +155,17 @@ class Game:
                     toggle_announcer(self.train, self.line)
             elif event.key in (pygame.K_q, pygame.K_e):
                 direction = -1 if event.key == pygame.K_q else 1
+                target_lane = None
+                if shift and getattr(self, "line_id", "") == "line_15":
+                    if self.train.track_index == 3 and direction < 0:
+                        target_lane = 1
+                    elif self.train.track_index == 0 and direction > 0:
+                        target_lane = 2
                 self.track_network.request_lane_change(
                     self.train, direction, ([self.train]
                                             + [bot.train for bot in self.bot_trains]
-                                            + [bot.train for bot in self.opposing_trains])
+                                            + [bot.train for bot in self.opposing_trains]),
+                    target_lane=target_lane,
                 )
             elif event.key == pygame.K_LEFT:
                 self.camera.pan(-1, self.train)

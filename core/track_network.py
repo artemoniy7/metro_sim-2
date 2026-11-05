@@ -76,8 +76,10 @@ class TrackNetwork:
             return (float(override) if override is not None
                     else self.lane_offset_for_index(train.track_index))
         position = float(train.position if position is None else position)
-        span = max(0.001, change["end"] - change["start"])
-        blend = self._smoothstep((position - change["start"]) / span)
+        span = max(0.001, abs(change["end"] - change["start"]))
+        blend = self._smoothstep(
+            (position - change["start"]) / (change["end"] - change["start"])
+        )
         start = float(change.get("from_offset_m", self.lane_offset_for_index(change["from"])))
         end = float(change.get("to_offset_m", self.lane_offset_for_index(change["to"])))
         return start + (end - start) * blend
@@ -112,24 +114,28 @@ class TrackNetwork:
             self.last_message = "Сначала завершите перевод"
             return False
 
-        # Local terminal crossovers connect the two outer tracks through a
-        # dedicated central segment. They are independently selectable with Q/E.
+        # Local terminal crossovers are explicit bidirectional connections.
+        # Their coordinate order follows the train's direction of travel.
         current_offset = self.lane_offset(train)
+        train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
         local_candidates = [
             item for item in self.local_switches
             if abs(float(item.get("from_offset_m", 0.0)) - current_offset) < 0.15
-            and self.switch_length / 2 <= float(item.get("position_m", item.get("start_m", 0.0))) - train.position <= self.switch_window
+            and int(item.get("travel_direction", 1)) == train_direction
+            and (float(item.get("position_m", item.get("start_m", 0.0)))
+                 - float(train.position)) * train_direction >= self.switch_length / 2
+            and (float(item.get("position_m", item.get("start_m", 0.0)))
+                 - float(train.position)) * train_direction <= self.switch_window
         ]
         if local_candidates:
-            switch = min(local_candidates, key=lambda item: abs(
-                float(item.get("position_m", item.get("start_m", 0.0))) - train.position
-            ))
-            start = max(float(train.position), float(switch["start_m"]))
+            local_candidates.sort(key=lambda item: float(item.get("to_offset_m", 0.0)))
+            selected_index = 0 if direction < 0 else min(1, len(local_candidates) - 1)
+            switch = local_candidates[selected_index]
+            start = float(switch["start_m"])
             end = float(switch["end_m"])
-            if end <= start:
+            if (end - start) * train_direction <= 0:
                 self.last_message = "Стрелочный перевод уже пройден"
                 return False
-            # The target may be the virtual central track, not a line-wide lane.
             target_offset = float(switch["to_offset_m"])
             target_lane = next((i for i in range(len(self.lanes))
                                 if abs(self.lane_offset_for_index(i) - target_offset) < 0.15),
@@ -138,9 +144,10 @@ class TrackNetwork:
                 "from": int(train.track_index), "to": target_lane,
                 "from_offset_m": current_offset, "to_offset_m": target_offset,
                 "start": start, "end": end, "switch": switch.get("id", "LOCAL"),
-                "to_label": switch.get("to_label", "Центральный путь"),
+                "to_label": switch.get("to_label", "Дополнительный путь"),
+                "direction": train_direction,
             }
-            self.last_message = f"Маршрут: {switch.get('to_label', 'центральный путь')}"
+            self.last_message = f"Маршрут: {switch.get('to_label', 'дополнительный путь')}"
             return True
 
         source = int(train.track_index)
@@ -194,8 +201,12 @@ class TrackNetwork:
         if not change:
             return
         # Reserve both connected tracks until the tail of the consist clears.
-        rear_position = float(train.position) - float(getattr(train, "consist_length_m", 0.0))
-        if rear_position >= change["end"]:
+        train_direction = int(change.get("direction", getattr(train, "direction", 1)))
+        rear_position = (float(train.position)
+                         - train_direction * float(getattr(train, "consist_length_m", 0.0)))
+        cleared = (rear_position >= change["end"] if train_direction >= 0
+                   else rear_position <= change["end"])
+        if cleared:
             target_offset = float(change.get("to_offset_m",
                                       self.lane_offset_for_index(change["to"])))
             train.track_index = change["to"]

@@ -275,6 +275,70 @@ class Renderer:
                 pygame.draw.line(surface, rail_top, (sx, y1 + 1), (ex, y2 + 1), 4)
                 pygame.draw.line(surface, rail_side, (sx, y1 + 7), (ex, y2 + 7), 2)
 
+        # Draw station-local sidings/dead ends from their separate layout file.
+        # Existing mainline tracks are reused; only additional local tracks are
+        # drawn here, preserving the regular track rendering style.
+        for segment in getattr(network, "local_track_segments", []):
+            if segment.get("existing_lane_index") is not None:
+                continue
+            start = float(segment.get("start_m", 0.0))
+            end = float(segment.get("end_m", 0.0))
+            if end <= start:
+                continue
+            offset = float(segment.get("offset_m", 0.0)) * scale
+            rail_top = tuple(segment.get("rail_top", (145, 151, 160)))
+            rail_side = tuple(segment.get("rail_side", (76, 83, 93)))
+            sleeper_color = tuple(segment.get("sleeper", (88, 83, 76)))
+            ballast = tuple(segment.get("ballast", (39, 43, 51)))
+            points = []
+            for sx in range(0, width, 4):
+                route_position = line.path.total_length - (camera_x + sx / scale)
+                if start <= route_position <= end:
+                    points.append((sx, rail_y_at(sx) + offset))
+            for (x1, y1), (x2, y2) in zip(points, points[1:]):
+                pygame.draw.polygon(surface, ballast, [
+                    (x1, y1 + 8), (x2, y2 + 8),
+                    (x2, y2 + 24), (x1, y1 + 24)
+                ])
+            sleeper = (int(start / spacing_m) + 1) * spacing_m
+            while sleeper < end:
+                sx = round((line.path.total_length - sleeper - camera_x) * scale)
+                if 0 <= sx < width:
+                    sy = rail_y_at(sx) + offset
+                    pygame.draw.line(surface, sleeper_color, (sx, sy - 1),
+                                     (sx, sy + 14), 3)
+                sleeper += spacing_m
+            if len(points) > 1:
+                upper = [(x, round(y + 1)) for x, y in points]
+                lower = [(x, round(y + 7)) for x, y in points]
+                pygame.draw.lines(surface, rail_top, False, upper, 4)
+                pygame.draw.lines(surface, rail_side, False, lower, 2)
+
+        # Local crossovers use explicit endpoint offsets and never alter the
+        # line-wide switch list or the renderer's standard track appearance.
+        for switch in getattr(network, "local_switches", []):
+            start = float(switch.get("start_m", 0.0))
+            end = float(switch.get("end_m", 0.0))
+            if end <= start:
+                continue
+            offset_a = float(switch.get("from_offset_m", 0.0)) * scale
+            offset_b = float(switch.get("to_offset_m", 0.0)) * scale
+            rail_one, rail_two = [], []
+            for step in range(25):
+                t = step / 24
+                eased = t * t * (3.0 - 2.0 * t)
+                route_position = start + (end - start) * t
+                sx = round((line.path.total_length - route_position - camera_x) * scale)
+                if sx < -20 or sx > width + 20:
+                    continue
+                base_y = rail_y_at(max(0, min(width - 1, sx)))
+                y = base_y + offset_a + (offset_b - offset_a) * eased
+                rail_one.append((sx, round(y + 1)))
+                rail_two.append((sx, round(y + 7)))
+            if len(rail_one) > 1:
+                pygame.draw.lines(surface, (156, 162, 170), False, rail_one, 4)
+                pygame.draw.lines(surface, (83, 90, 99), False, rail_two, 2)
+
         # Smooth connectors between adjacent paths; all remain on one plane.
         for switch in network.switches:
             start = max(0.0, switch["position"] - network.switch_length / 2)

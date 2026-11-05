@@ -331,12 +331,12 @@ class Renderer:
         # Local crossovers use explicit endpoint offsets and never alter the
         # line-wide switch list or the renderer's standard track appearance.
         for switch in getattr(network, "local_switches", []):
-            start = float(switch.get("start_m", 0.0))
-            end = float(switch.get("end_m", 0.0))
-            if end <= start:
+            # Draw direction is explicit: the turnout starts at the Nekrasovka
+            # end of the siding and runs away from the station toward the main track.
+            start = float(switch.get("draw_start_m", switch.get("start_m", 0.0)))
+            end = float(switch.get("draw_end_m", switch.get("end_m", 0.0)))
+            if abs(end - start) < 1e-6:
                 continue
-            # Geometry can be drawn opposite to operational train movement:
-            # the turnout meets the siding endpoint while trains route siding -> main.
             offset_a = float(switch.get(
                 "draw_from_offset_m", switch.get("from_offset_m", 0.0)
             )) * scale

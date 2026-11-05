@@ -29,7 +29,10 @@ class TrackNetwork:
                 if station_index % interval != 0:
                     continue
                 center = float(station.get("position", 0.0))
-                positions.extend((center - approach, center + approach))
+                positions.append(center - approach)
+                skip_after = set(data.get("station_switches_skip_after", []))
+                if station.get("name") not in skip_after:
+                    positions.append(center + approach)
         positions = sorted({
             round(position, 2) for position in positions
             if self.switch_length / 2 <= position <= line.path.total_length - self.switch_length / 2

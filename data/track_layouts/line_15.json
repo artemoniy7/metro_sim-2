@@ -1,100 +1,42 @@
 {
   "schema_version": 1,
-  "layout_id": "line_15_nekrasovka_turnback",
-  "description": "Схема Некрасовки с двухпутным продолжением линии и двумя внутренними оборотными путями между главными путями.",
+  "layout_id": "line_15_nekrasovka_terminal",
+  "description": "Два главных пути после станции «Некрасовка»: прямой участок 50 м от края платформы, затем последние 170 м пути до тупиковых упоров. Оба пути заканчиваются тупиками.",
   "reference_station": "Некрасовка",
   "station_position_m": 500,
-  "coordinate_note": "Вид со стороны подхода к станции: два главных пути идут прямо и остаются непрерывными; между ними расположены два параллельных оборотных пути. На ближней и дальней горловинах диагональные соединения переводят состав с каждого главного пути на соответствующий внутренний оборотный путь. Некрасовка находится на отметке 500 м; виртуальный подход добавляет 500 м.",
+  "coordinate_note": "Отсчёт начинается от края платформы станции «Некрасовка» в сторону продолжения линии: сначала 50 м прямого двухпутного участка, затем 170 м двухпутного участка до физических тупиков. Общая длина от края платформы до тупиков — 220 м. Оба главных пути заканчиваются в одной поперечной плоскости; дополнительных внутренних путей и соединительных стрелок нет.",
   "track_segments": [
     {
       "id": "outer_opposing",
-      "label": "Наружный главный путь 1 — непрерывное продолжение",
+      "label": "Встречный путь — тупик",
       "existing_lane_index": 0,
       "offset_m": 4,
-      "start_m": 70,
-      "end_m": 240,
-      "length_m": 170
-    },
-    {
-      "id": "inner_turnback_a",
-      "label": "Внутренний оборотный путь 1",
-      "offset_m": 2.6666667,
-      "start_m": 70,
-      "end_m": 240,
-      "length_m": 170
-    },
-    {
-      "id": "inner_turnback_b",
-      "label": "Внутренний оборотный путь 2",
-      "offset_m": 1.3333333,
-      "start_m": 70,
-      "end_m": 240,
-      "length_m": 170
+      "start_m": 0,
+      "end_m": 220,
+      "length_m": 220,
+      "terminal": true,
+      "terminal_buffer": true
     },
     {
       "id": "outer_main",
-      "label": "Наружный главный путь 2 — непрерывное продолжение",
+      "label": "Главный путь — тупик",
       "existing_lane_index": 1,
       "offset_m": 0,
-      "start_m": 70,
-      "end_m": 240,
-      "length_m": 170
+      "start_m": 0,
+      "end_m": 220,
+      "length_m": 220,
+      "terminal": true,
+      "terminal_buffer": true
     }
   ],
-  "switches": [
-    {
-      "id": "far_main_1_to_turnback_1",
-      "start_m": 10,
-      "end_m": 70,
-      "from_track_id": "outer_opposing",
-      "to_track_id": "inner_turnback_a",
-      "from_offset_m": 4,
-      "to_offset_m": 2.6666667
-    },
-    {
-      "id": "far_turnback_2_to_main_2",
-      "start_m": 10,
-      "end_m": 70,
-      "from_track_id": "inner_turnback_b",
-      "to_track_id": "outer_main",
-      "from_offset_m": 1.3333333,
-      "to_offset_m": 0
-    },
-    {
-      "id": "near_main_1_to_turnback_2",
-      "start_m": 240,
-      "end_m": 300,
-      "from_track_id": "outer_opposing",
-      "to_track_id": "inner_turnback_b",
-      "from_offset_m": 4,
-      "to_offset_m": 1.3333333
-    },
-    {
-      "id": "near_turnback_1_to_main_2",
-      "start_m": 240,
-      "end_m": 300,
-      "from_track_id": "inner_turnback_a",
-      "to_track_id": "outer_main",
-      "from_offset_m": 2.6666667,
-      "to_offset_m": 0
-    }
-  ],
+  "switches": [],
   "origin_extension_m": 500,
-  "topology": {
-    "track_order": [
-      "outer_opposing",
-      "inner_turnback_a",
-      "inner_turnback_b",
-      "outer_main"
-    ],
-    "through_tracks": [
-      "outer_opposing",
-      "outer_main"
-    ],
-    "turnback_tracks": [
-      "inner_turnback_a",
-      "inner_turnback_b"
-    ],
-    "note": "Два наружных пути продолжаются прямо. Два внутренних расположены между ними; диагональные стрелочные соединения показаны на обеих горловинах."
+  "terminal_layout": {
+    "platform_edge_to_track_start_m": 0,
+    "approach_length_m": 50,
+    "dead_end_length_m": 170,
+    "total_length_m": 220,
+    "parallel_tracks": 2,
+    "dead_ends": 2
   }
 }

@@ -90,7 +90,7 @@ class TrackNetwork:
         if change:
             position = float(train.position if position is None else position)
             blend = self._smoothstep(
-                (position - change["start"]) / max(0.001, change["end"] - change["start"])
+                (position - change["start"]) / (change["end"] - change["start"])
             )
             if blend >= 0.5:
                 lane_index = change["to"]

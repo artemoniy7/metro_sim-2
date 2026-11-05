@@ -28,11 +28,11 @@ class TrackNetwork:
             for station_index, station in enumerate(getattr(line, "stations", [])):
                 if station_index % interval != 0:
                     continue
+                # Skip the entire crossover pair at configured stations.
+                if station.get("name") in set(data.get("station_switches_skip", [])):
+                    continue
                 center = float(station.get("position", 0.0))
-                positions.append(center - approach)
-                skip_after = set(data.get("station_switches_skip_after", []))
-                if station.get("name") not in skip_after:
-                    positions.append(center + approach)
+                positions.extend((center - approach, center + approach))
         positions = sorted({
             round(position, 2) for position in positions
             if self.switch_length / 2 <= position <= line.path.total_length - self.switch_length / 2

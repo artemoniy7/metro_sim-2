@@ -72,12 +72,13 @@ class TrackNetwork:
     def lane_offset(self, train, position=None):
         change = getattr(train, "track_change", None)
         if not change:
-            return self.lane_offset_for_index(train.track_index)
+            return float(getattr(train, "track_offset_override_m",
+                                 self.lane_offset_for_index(train.track_index)))
         position = float(train.position if position is None else position)
         span = max(0.001, change["end"] - change["start"])
         blend = self._smoothstep((position - change["start"]) / span)
-        start = self.lane_offset_for_index(change["from"])
-        end = self.lane_offset_for_index(change["to"])
+        start = float(change.get("from_offset_m", self.lane_offset_for_index(change["from"])))
+        end = float(change.get("to_offset_m", self.lane_offset_for_index(change["to"])))
         return start + (end - start) * blend
 
     def tint_for_train(self, train, position=None):
@@ -106,6 +107,38 @@ class TrackNetwork:
         if getattr(train, "track_change", None):
             self.last_message = "Сначала завершите перевод"
             return False
+
+        # Local terminal crossovers connect the two outer tracks through a
+        # dedicated central segment. They are independently selectable with Q/E.
+        current_offset = self.lane_offset(train)
+        local_candidates = [
+            item for item in self.local_switches
+            if abs(float(item.get("from_offset_m", 0.0)) - current_offset) < 0.15
+            and self.switch_length / 2 <= float(item.get("position_m", item.get("start_m", 0.0))) - train.position <= self.switch_window
+        ]
+        if local_candidates:
+            switch = min(local_candidates, key=lambda item: abs(
+                float(item.get("position_m", item.get("start_m", 0.0))) - train.position
+            ))
+            start = max(float(train.position), float(switch["start_m"]))
+            end = float(switch["end_m"])
+            if end <= start:
+                self.last_message = "Стрелочный перевод уже пройден"
+                return False
+            # The target may be the virtual central track, not a line-wide lane.
+            target_offset = float(switch["to_offset_m"])
+            target_lane = next((i for i in range(len(self.lanes))
+                                if abs(self.lane_offset_for_index(i) - target_offset) < 0.15),
+                               int(train.track_index))
+            train.track_change = {
+                "from": int(train.track_index), "to": target_lane,
+                "from_offset_m": current_offset, "to_offset_m": target_offset,
+                "start": start, "end": end, "switch": switch.get("id", "LOCAL"),
+                "to_label": switch.get("to_label", "Центральный путь"),
+            }
+            self.last_message = f"Маршрут: {switch.get('to_label', 'центральный путь')}"
+            return True
+
         source = int(train.track_index)
         target = source + (1 if direction > 0 else -1)
         if target < 0 or target >= len(self.lanes):
@@ -159,6 +192,13 @@ class TrackNetwork:
         # Reserve both connected tracks until the tail of the consist clears.
         rear_position = float(train.position) - float(getattr(train, "consist_length_m", 0.0))
         if rear_position >= change["end"]:
+            target_offset = float(change.get("to_offset_m",
+                                      self.lane_offset_for_index(change["to"])))
             train.track_index = change["to"]
+            matching_lane = next((i for i in range(len(self.lanes))
+                                  if abs(self.lane_offset_for_index(i) - target_offset) < 0.15), None)
+            train.track_offset_override_m = (None if matching_lane is not None else target_offset)
+            if matching_lane is not None:
+                train.track_index = matching_lane
             train.track_change = None
-            self.last_message = f"Занят {self.lanes[train.track_index].get('label', 'путь')}"
+            self.last_message = f"Занят {change.get('to_label', self.lanes[train.track_index].get('label', 'путь'))}"

@@ -50,7 +50,7 @@
       "id": "LOCAL-INNER-1-MAIN",
       "start_m": 318.5,
       "end_m": 368.5,
-      "position_m": 318.5,
+      "position_m": 368.5,
       "from_offset_m": 2.6666667,
       "to_offset_m": 0,
       "from_label": "Внутренний путь 1 — дальний",
@@ -65,7 +65,7 @@
       "id": "LOCAL-INNER-2-MAIN",
       "start_m": 318.5,
       "end_m": 368.5,
-      "position_m": 318.5,
+      "position_m": 368.5,
       "from_offset_m": 1.3333333,
       "to_offset_m": 0,
       "from_label": "Внутренний путь 2 — ближний",
@@ -80,7 +80,7 @@
       "id": "LOCAL-MAIN-INNER-1",
       "start_m": 368.5,
       "end_m": 318.5,
-      "position_m": 368.5,
+      "position_m": 318.5,
       "from_offset_m": 0,
       "to_offset_m": 2.6666667,
       "from_label": "Главный путь",
@@ -95,7 +95,7 @@
       "id": "LOCAL-MAIN-INNER-2",
       "start_m": 368.5,
       "end_m": 318.5,
-      "position_m": 368.5,
+      "position_m": 318.5,
       "from_offset_m": 0,
       "to_offset_m": 1.3333333,
       "from_label": "Главный путь",
@@ -105,36 +105,6 @@
       "draw_start_m": 368.5,
       "draw_end_m": 318.5,
       "travel_direction": -1
-    },
-    {
-      "id": "LOCAL-OPPOSING-MAIN",
-      "start_m": 368.5,
-      "end_m": 318.5,
-      "position_m": 368.5,
-      "from_offset_m": 4,
-      "to_offset_m": 0,
-      "from_label": "Внешний встречный путь",
-      "to_label": "Главный путь",
-      "draw_from_offset_m": 4,
-      "draw_to_offset_m": 0,
-      "draw_start_m": 368.5,
-      "draw_end_m": 318.5,
-      "travel_direction": -1
-    },
-    {
-      "id": "LOCAL-MAIN-OPPOSING",
-      "start_m": 318.5,
-      "end_m": 368.5,
-      "position_m": 318.5,
-      "from_offset_m": 0,
-      "to_offset_m": 4,
-      "from_label": "Главный путь",
-      "to_label": "Внешний встречный путь",
-      "draw_from_offset_m": 0,
-      "draw_to_offset_m": 4,
-      "draw_start_m": 318.5,
-      "draw_end_m": 368.5,
-      "travel_direction": 1
     }
   ],
   "origin_extension_m": 500,
@@ -150,13 +120,12 @@
     "parallel_tracks": 4,
     "inner_tracks": 2,
     "dead_ends": 2,
-    "local_switch_count": 6,
+    "local_switch_count": 4,
     "connected_inner_tracks": [
       "inner_track_1",
       "inner_track_2"
     ],
     "connected_outer_tracks": [
-      "outer_opposing",
       "outer_main"
     ]
   }

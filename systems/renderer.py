@@ -335,8 +335,14 @@ class Renderer:
             end = float(switch.get("end_m", 0.0))
             if end <= start:
                 continue
-            offset_a = float(switch.get("from_offset_m", 0.0)) * scale
-            offset_b = float(switch.get("to_offset_m", 0.0)) * scale
+            # Geometry can be drawn opposite to operational train movement:
+            # the turnout meets the siding endpoint while trains route siding -> main.
+            offset_a = float(switch.get(
+                "draw_from_offset_m", switch.get("from_offset_m", 0.0)
+            )) * scale
+            offset_b = float(switch.get(
+                "draw_to_offset_m", switch.get("to_offset_m", 0.0)
+            )) * scale
             rail_one, rail_two = [], []
             for step in range(25):
                 t = step / 24

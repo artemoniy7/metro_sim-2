@@ -290,15 +290,22 @@ class Renderer:
             rail_side = tuple(segment.get("rail_side", (76, 83, 93)))
             sleeper_color = tuple(segment.get("sleeper", (88, 83, 76)))
             ballast = tuple(segment.get("ballast", (39, 43, 51)))
-            points = []
-            for sx in range(0, width, 4):
-                route_position = line.path.total_length - (camera_x + sx / scale)
-                if start <= route_position <= end:
-                    points.append((sx, rail_y_at(sx) + offset))
+            # Sample local tracks at every screen pixel. A 4 px step can
+            # skip an entire short segment when the camera is fully zoomed out.
+            screen_start = (line.path.total_length - end - camera_x) * scale
+            screen_end = (line.path.total_length - start - camera_x) * scale
+            left = max(0, math.ceil(min(screen_start, screen_end)))
+            right = min(width - 1, math.floor(max(screen_start, screen_end)))
+            sample_x = list(range(left, right + 1))
+            if not sample_x:
+                midpoint = round((screen_start + screen_end) / 2)
+                if 0 <= midpoint < width:
+                    sample_x = [midpoint]
+            points = [(sx, rail_y_at(sx) + offset) for sx in sample_x]
             for (x1, y1), (x2, y2) in zip(points, points[1:]):
                 pygame.draw.polygon(surface, ballast, [
-                    (x1, y1 + 8), (x2, y2 + 8),
-                    (x2, y2 + 24), (x1, y1 + 24)
+                    (x1, round(y1 + 8)), (x2, round(y2 + 8)),
+                    (x2, round(y2 + 24)), (x1, round(y1 + 24))
                 ])
             sleeper = (int(start / spacing_m) + 1) * spacing_m
             while sleeper < end:
@@ -313,6 +320,12 @@ class Renderer:
                 lower = [(x, round(y + 7)) for x, y in points]
                 pygame.draw.lines(surface, rail_top, False, upper, 4)
                 pygame.draw.lines(surface, rail_side, False, lower, 2)
+            elif points:
+                x, y = points[0]
+                pygame.draw.line(surface, rail_top, (x, round(y + 1)),
+                                 (x, round(y + 7)), 4)
+                pygame.draw.line(surface, rail_side, (x, round(y + 7)),
+                                 (x, round(y + 13)), 2)
 
         # Local crossovers use explicit endpoint offsets and never alter the
         # line-wide switch list or the renderer's standard track appearance.

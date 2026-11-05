@@ -1,52 +1,43 @@
-"""Parallel-track layout with local sidings and bidirectional crossovers."""
+"""Parallel-track layout with world-space offsets and safe crossovers."""
 class TrackNetwork:
     def __init__(self, line, data=None):
         data = data or {}
         self.line = line
         self.main_lane = int(data.get("main_lane", 1))
+        # Default layout has exactly two parallel tracks. Lines with a
+        # dedicated track file can provide their own labels and directions.
         self.lanes = list(data.get("lanes", [
-            {"id": "opposing", "label": "Встречный путь", "offset_m": -3.43, "direction": -1},
-            {"id": "main", "label": "Главный путь", "offset_m": 0.0, "direction": 1},
+            {"id": "opposing", "label": "Встречный путь", "offset_m": -3.43},
+            {"id": "main", "label": "Главный путь", "offset_m": 0.0},
         ]))
         if not self.lanes:
             self.lanes = [{"id": "main", "label": "Главный путь", "offset_m": 0.0}]
         self.main_lane = max(0, min(len(self.lanes) - 1, self.main_lane))
-        self.switch_length = max(20.0, float(data.get("switch_length_m", 100.0)))
+        self.switch_length = max(40.0, float(data.get("switch_length_m", 100.0)))
         self.switch_window = max(self.switch_length, float(data.get("switch_window_m", 120.0)))
-        configured_switches = data.get("switches")
-        if configured_switches is not None:
-            self.switches = [
-                {
-                    "id": str(item.get("id", f"SW-{index:02d}")),
-                    "position": float(item["position"]),
-                    "lane_pairs": [tuple(map(int, pair)) for pair in item.get(
-                        "lane_pairs", ((lane, lane + 1) for lane in range(len(self.lanes) - 1))
-                    )],
-                }
-                for index, item in enumerate(configured_switches, start=1)
-            ]
-        else:
-            spacing = max(300.0, float(data.get("switch_spacing_m", 1500.0)))
-            first = max(100.0, float(data.get("first_switch_m", 900.0)))
-            positions = list(self._positions(first, spacing, line.path.total_length))
-            if data.get("station_switches", False):
-                interval = max(1, int(data.get("station_switch_interval", 4)))
-                approach = max(self.switch_length, float(
-                    data.get("switch_offset_from_station_m", 260.0)
-                ))
-                for station_index, station in enumerate(getattr(line, "stations", [])):
-                    if station_index % interval == 0:
-                        center = float(station.get("position", 0.0))
-                        positions.extend((center - approach, center + approach))
-            positions = sorted({
-                round(position, 2) for position in positions
-                if self.switch_length / 2 <= position <= line.path.total_length - self.switch_length / 2
-            })
-            pairs = [(lane, lane + 1) for lane in range(len(self.lanes) - 1)]
-            self.switches = [
-                {"id": f"SW-{index:02d}", "position": position, "lane_pairs": pairs}
-                for index, position in enumerate(positions, start=1)
-            ]
+        spacing = max(300.0, float(data.get("switch_spacing_m", 1500.0)))
+        first = max(100.0, float(data.get("first_switch_m", 900.0)))
+        positions = list(self._positions(first, spacing, line.path.total_length))
+        # Add paired crossovers outside selected station platforms. This makes
+        # the route changes visible near stations without putting points under platforms.
+        if data.get("station_switches", False):
+            interval = max(1, int(data.get("station_switch_interval", 4)))
+            approach = max(self.switch_length, float(
+                data.get("switch_offset_from_station_m", 260.0)
+            ))
+            for station_index, station in enumerate(getattr(line, "stations", [])):
+                if station_index % interval != 0:
+                    continue
+                center = float(station.get("position", 0.0))
+                positions.extend((center - approach, center + approach))
+        positions = sorted({
+            round(position, 2) for position in positions
+            if self.switch_length / 2 <= position <= line.path.total_length - self.switch_length / 2
+        })
+        self.switches = [
+            {"id": f"SW-{index:02d}", "position": position}
+            for index, position in enumerate(positions, start=1)
+        ]
         self.last_message = ""
 
     @staticmethod
@@ -64,6 +55,8 @@ class TrackNetwork:
     def lane_offset_for_index(self, index):
         index = max(0, min(len(self.lanes) - 1, int(index)))
         lane = self.lanes[index]
+        # Store physical spacing in metres. Convert legacy pixel spacing using
+        # the previous default camera scale to keep existing layouts compatible.
         if "offset_m" in lane:
             return float(lane["offset_m"])
         return float(lane.get("offset_px", 0.0)) / 28.0
@@ -74,9 +67,7 @@ class TrackNetwork:
             return self.lane_offset_for_index(train.track_index)
         position = float(train.position if position is None else position)
         span = max(0.001, change["end"] - change["start"])
-        progress = ((position - change["start"]) / span if change.get("direction", 1) > 0
-                    else (change["end"] - position) / span)
-        blend = self._smoothstep(progress)
+        blend = self._smoothstep((position - change["start"]) / span)
         start = self.lane_offset_for_index(change["from"])
         end = self.lane_offset_for_index(change["to"])
         return start + (end - start) * blend
@@ -86,10 +77,10 @@ class TrackNetwork:
         lane_index = train.track_index
         if change:
             position = float(train.position if position is None else position)
-            span = max(0.001, change["end"] - change["start"])
-            progress = ((position - change["start"]) / span if change.get("direction", 1) > 0
-                        else (change["end"] - position) / span)
-            if self._smoothstep(progress) >= 0.5:
+            blend = self._smoothstep(
+                (position - change["start"]) / max(0.001, change["end"] - change["start"])
+            )
+            if blend >= 0.5:
                 lane_index = change["to"]
         tint = self.lanes[max(0, min(len(self.lanes) - 1, lane_index))].get(
             "tint", [255, 255, 255]
@@ -103,37 +94,30 @@ class TrackNetwork:
                     f"{self.lanes[change['to']].get('label', 'Путь')}")
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
-    def request_lane_change(self, train, direction, trains, target_lane=None):
+    def request_lane_change(self, train, direction, trains):
         if getattr(train, "track_change", None):
             self.last_message = "Сначала завершите перевод"
             return False
         source = int(train.track_index)
-        target = (int(target_lane) if target_lane is not None
-                  else source + (1 if direction > 0 else -1))
-        if target == source or target < 0 or target >= len(self.lanes):
+        target = source + (1 if direction > 0 else -1)
+        if target < 0 or target >= len(self.lanes):
             self.last_message = "Соседнего пути нет"
             return False
-        train_direction = -1 if int(getattr(train, "direction", 1)) < 0 else 1
+        train_direction = int(getattr(train, "direction", 1))
         lane_direction = int(self.lanes[target].get("direction", train_direction))
-        if lane_direction not in (0, train_direction):
+        if lane_direction != train_direction:
             self.last_message = "Этот путь предназначен для встречного движения"
             return False
         available = [
             switch for switch in self.switches
-            if tuple(sorted((source, target))) in switch.get("lane_pairs", [])
-            and self.switch_length / 2 <=
-                (switch["position"] - float(train.position)) * train_direction
-                <= self.switch_window
+            if self.switch_length / 2 <= switch["position"] - train.position <= self.switch_window
         ]
         if not available:
-            self.last_message = "Рядом нет стрелочного перевода для этих путей"
+            self.last_message = "Рядом нет стрелочного перевода"
             return False
         switch = min(available, key=lambda item: abs(item["position"] - train.position))
-        half = self.switch_length / 2
-        start = switch["position"] - half
-        end = switch["position"] + half
-        zone_start = start - self.switch_length / 2
-        zone_end = end + self.switch_length / 2
+        zone_start = switch["position"] - self.switch_length
+        zone_end = switch["position"] + self.switch_length
         conflicting_lanes = {source, target}
         for other in trains:
             if other is train or not hasattr(other, "position"):
@@ -148,33 +132,25 @@ class TrackNetwork:
             if rear <= zone_end and front >= zone_start:
                 self.last_message = "Стрелка занята другим составом"
                 return False
-        if train_direction > 0:
-            transition_start, transition_end = max(float(train.position), start), end
-        else:
-            transition_start, transition_end = start, min(float(train.position), end)
-        if transition_end - transition_start <= 0.001:
+        start = max(float(train.position), switch["position"] - self.switch_length / 2)
+        end = switch["position"] + self.switch_length / 2
+        if end <= start:
             self.last_message = "Стрелочный перевод уже пройден"
             return False
         train.track_change = {
             "from": source, "to": target,
-            "start": transition_start, "end": transition_end,
-            "direction": train_direction, "switch": switch["id"],
+            "start": start, "end": end, "switch": switch["id"],
         }
-        self.last_message = f"Перевод на {self.lanes[target].get('label', 'путь')}"
+        self.last_message = f"Перевод на {self.lanes[target].get('label', 'соседний путь')}"
         return True
 
     def update_train(self, train):
         change = getattr(train, "track_change", None)
         if not change:
             return
-        length = float(getattr(train, "consist_length_m", 0.0))
-        if change.get("direction", 1) > 0:
-            tail_position = float(train.position) - length
-            cleared = tail_position >= change["end"]
-        else:
-            tail_position = float(train.position) + length
-            cleared = tail_position <= change["start"]
-        if cleared:
+        # Reserve both connected tracks until the tail of the consist clears.
+        rear_position = float(train.position) - float(getattr(train, "consist_length_m", 0.0))
+        if rear_position >= change["end"]:
             train.track_index = change["to"]
             train.track_change = None
             self.last_message = f"Занят {self.lanes[train.track_index].get('label', 'путь')}"

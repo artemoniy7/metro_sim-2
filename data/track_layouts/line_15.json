@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "layout_id": "line_15_nekrasovka_terminal_with_inner_tracks",
-  "description": "Два внешних тупиковых пути и два внутренних параллельных пути. Первый внутренний соединён стрелками с обоими внешними; второй остаётся изолированным.",
+  "description": "За станцией Некрасовка расположены два параллельных внутренних пути. Только первый внутренний путь соединён одним переводом с главным внешним; второй внутренний путь изолирован. Оба внешних пути заканчиваются тупиками.",
   "reference_station": "Некрасовка",
   "station_position_m": 500,
-  "coordinate_note": "Координаты указаны в системе маршрута после виртуального 500-метрового подхода: Некрасовка находится на отметке 500 м. Внешние пути продолжаются от станции до 800 м. Оба внутренних начинаются на отметке 550 м (через 50 м после станции); центральный соединительный путь доходит до 800 м, второй внутренний путь остаётся отдельным.",
+  "coordinate_note": "Координаты указаны в системе маршрута после виртуального 500-метрового подхода: центр станции Некрасовка — 500 м, край платформы — примерно 581.5 м. Внутренние пути начинаются на 650 м, то есть полностью за платформой с дополнительным отступом около 68.5 м. Оба внутренних пути идут параллельно до 800 м. Единственное соединение — с главного внешнего пути на первый внутренний; встречный внешний и второй внутренний не соединяются.",
   "track_segments": [
     {
       "id": "outer_opposing",
@@ -19,19 +19,19 @@
     },
     {
       "id": "inner_track_1",
-      "label": "Центральный соединительный путь",
+      "label": "Внутренний путь 1 — соединён с главным",
       "offset_m": 2.6666667,
-      "start_m": 550,
+      "start_m": 650,
       "end_m": 800,
-      "length_m": 250
+      "length_m": 150
     },
     {
       "id": "inner_track_2",
-      "label": "Внутренний путь 2",
+      "label": "Внутренний путь 2 — отдельный",
       "offset_m": 1.3333333,
-      "start_m": 550,
-      "end_m": 720,
-      "length_m": 170
+      "start_m": 650,
+      "end_m": 800,
+      "length_m": 150
     },
     {
       "id": "outer_main",
@@ -47,35 +47,29 @@
   ],
   "switches": [
     {
-      "id": "LOCAL-CENTER-IN",
-      "start_m": 550,
-      "end_m": 590,
-      "position_m": 550,
+      "id": "LOCAL-MAIN-INNER-1",
+      "start_m": 650,
+      "end_m": 710,
+      "position_m": 650,
       "from_offset_m": 0,
       "to_offset_m": 2.6666667,
-      "from_label": "Главный путь",
-      "to_label": "Центральный путь"
-    },
-    {
-      "id": "LOCAL-CENTER-OUT",
-      "start_m": 760,
-      "end_m": 800,
-      "position_m": 760,
-      "from_offset_m": 2.6666667,
-      "to_offset_m": 4,
-      "from_label": "Центральный путь",
-      "to_label": "Встречный путь"
+      "from_label": "Главный внешний путь",
+      "to_label": "Внутренний путь 1"
     }
   ],
   "origin_extension_m": 500,
   "terminal_layout": {
-    "platform_edge_to_track_start_m": 0,
-    "inner_tracks_start_after_station_m": 50,
-    "inner_tracks_length_m": 170,
+    "platform_edge_to_track_start_m": 68.5,
+    "inner_tracks_start_after_station_m": 150,
+    "inner_tracks_length_m": 150,
     "total_length_m": 300,
     "parallel_tracks": 4,
     "inner_tracks": 2,
     "dead_ends": 2,
-    "central_connector": true
+    "central_connector": false,
+    "single_connection_from": "outer_main",
+    "single_connection_to": "inner_track_1",
+    "isolated_inner_track": "inner_track_2",
+    "local_switch_count": 1
   }
 }

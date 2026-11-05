@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "layout_id": "line_15_nekrasovka_terminal_with_inner_tracks",
-  "description": "Два главных тупиковых пути и два дополнительных внутренних параллельных пути между ними. Внутренние пути начинаются через 50 м после конца станции; соединительных стрелок нет.",
+  "description": "Два главных тупиковых пути и два внутренних параллельных пути. Один внутренний путь соединён стрелками с обоими внешними и доступен для переключения состава.",
   "reference_station": "Некрасовка",
   "station_position_m": 500,
-  "coordinate_note": "Отсчёт начинается от конца станции «Некрасовка» в сторону продолжения линии: два внутренних пути начинаются через 50 м и идут параллельно между двумя главными путями. Они не соединяются с главными путями. Главные пути продолжаются до тупиков; соединительных стрелок и переходов нет.",
+  "coordinate_note": "Центральный путь 1 соединяет встречный внешний путь и главный внешний путь: стрелка у начала переводит состав с главного пути на центральный, стрелка у конца — с центрального на встречный внешний. Второй внутренний путь остаётся изолированным.",
   "track_segments": [
     {
       "id": "outer_opposing",
@@ -18,17 +18,9 @@
       "terminal_buffer": true
     },
     {
-      "id": "inner_track_1",
-      "label": "Внутренний путь 1",
+      "id": "central_connector",
+      "label": "Центральный соединительный путь",
       "offset_m": 2.6666667,
-      "start_m": 50,
-      "end_m": 220,
-      "length_m": 170
-    },
-    {
-      "id": "inner_track_2",
-      "label": "Внутренний путь 2",
-      "offset_m": 1.3333333,
       "start_m": 50,
       "end_m": 220,
       "length_m": 170
@@ -45,7 +37,28 @@
       "terminal_buffer": true
     }
   ],
-  "switches": [],
+  "switches": [
+    {
+      "id": "LOCAL-CENTER-IN",
+      "start_m": 50,
+      "end_m": 90,
+      "position_m": 50,
+      "from_offset_m": 0,
+      "to_offset_m": 2.6666667,
+      "from_label": "Главный путь",
+      "to_label": "Центральный путь"
+    },
+    {
+      "id": "LOCAL-CENTER-OUT",
+      "start_m": 180,
+      "end_m": 220,
+      "position_m": 180,
+      "from_offset_m": 2.6666667,
+      "to_offset_m": 4,
+      "from_label": "Центральный путь",
+      "to_label": "Встречный путь"
+    }
+  ],
   "origin_extension_m": 500,
   "terminal_layout": {
     "platform_edge_to_track_start_m": 0,
@@ -53,7 +66,8 @@
     "inner_tracks_length_m": 170,
     "total_length_m": 220,
     "parallel_tracks": 4,
-    "inner_tracks": 2,
-    "dead_ends": 2
+    "inner_tracks": 1,
+    "dead_ends": 2,
+    "central_connector": true
   }
 }

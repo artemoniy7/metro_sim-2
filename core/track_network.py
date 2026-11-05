@@ -1,6 +1,6 @@
 """Parallel-track layout with world-space offsets and safe crossovers."""
 class TrackNetwork:
-    def __init__(self, line, data=None):
+    def __init__(self, line, data=None, local_layout=None):
         data = data or {}
         self.line = line
         self.main_lane = int(data.get("main_lane", 1))
@@ -38,6 +38,11 @@ class TrackNetwork:
             {"id": f"SW-{index:02d}", "position": position}
             for index, position in enumerate(positions, start=1)
         ]
+        # Optional station/dead-end geometry is kept in a separate file so the
+        # line-wide parallel-track configuration remains unchanged.
+        local_layout = local_layout or {}
+        self.local_track_segments = list(local_layout.get("track_segments", []))
+        self.local_switches = list(local_layout.get("switches", []))
         self.last_message = ""
 
     @staticmethod

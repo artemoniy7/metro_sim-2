@@ -24,7 +24,10 @@ class Game:
         # Start directly on the selected line, at the selected station.
         self.line = Line(self.line_data)
         track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
-        self.track_network = TrackNetwork(self.line, track_data)
+        local_track_layout = load_json(
+            DATA_DIR / "track_layouts" / f"{line_id}.json", default={}
+        )
+        self.track_network = TrackNetwork(self.line, track_data, local_track_layout)
         self.renderer.configure_line_station_sprites(line_id)
         train_path = DATA_DIR / "trains" / (train_file or "81-760.json")
         train_data = load_json(train_path, default={})

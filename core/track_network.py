@@ -118,14 +118,22 @@ class TrackNetwork:
         # Their coordinate order follows the train's direction of travel.
         current_offset = self.lane_offset(train)
         train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
-        local_candidates = [
+        # Local terminal turnouts sit just beyond the station platform.
+        # Let the driver select them while still at the platform: the old
+        # 120 m window was shorter than the 131.5 m distance from the
+        # Nekrasovka station center (500 m) to the reverse turnout entry (368.5 m).
+        local_window = max(self.switch_window, 200.0)
+        matching_local = [
             item for item in self.local_switches
             if abs(float(item.get("from_offset_m", 0.0)) - current_offset) < 0.15
             and int(item.get("travel_direction", 1)) == train_direction
-            and (float(item.get("position_m", item.get("start_m", 0.0)))
-                 - float(train.position)) * train_direction >= self.switch_length / 2
-            and (float(item.get("position_m", item.get("start_m", 0.0)))
-                 - float(train.position)) * train_direction <= self.switch_window
+        ]
+        local_candidates = [
+            item for item in matching_local
+            if 0.0 <= (
+                float(item.get("position_m", item.get("start_m", 0.0)))
+                - float(train.position)
+            ) * train_direction <= local_window
         ]
         if local_candidates:
             local_candidates.sort(key=lambda item: float(item.get("to_offset_m", 0.0)))
@@ -149,6 +157,22 @@ class TrackNetwork:
             }
             self.last_message = f"Маршрут: {switch.get('to_label', 'дополнительный путь')}"
             return True
+
+        # If a local connection exists for this track and direction but is
+        # outside the selection window, report its distance instead of falling
+        # through to the unrelated two-lane neighbour logic.
+        if matching_local:
+            distances = [
+                (float(item.get("position_m", item.get("start_m", 0.0)))
+                 - float(train.position)) * train_direction
+                for item in matching_local
+            ]
+            ahead = [distance for distance in distances if distance >= 0.0]
+            if ahead:
+                self.last_message = f"Стрелка через {min(ahead):.0f} м"
+            else:
+                self.last_message = "Локальная стрелка уже пройдена"
+            return False
 
         source = int(train.track_index)
         target = source + (1 if direction > 0 else -1)

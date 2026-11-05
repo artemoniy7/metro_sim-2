@@ -675,6 +675,42 @@ class Renderer:
 
         self._draw_parallel_tracks(surface, line, camera_x, scale, rail_y_at, track_network)
 
+        # Highlight the exact local turnout selected by the driver until the
+        # whole consist clears it. This makes the chosen route unmistakable.
+        active_change = getattr(train, "track_change", None)
+        if active_change and track_network is not None:
+            active_id = active_change.get("switch")
+            active_switch = next((
+                item for item in track_network.local_switches
+                if item.get("id") == active_id
+            ), None)
+            if active_switch is not None:
+                route_start = float(active_switch.get("draw_start_m", active_switch["start_m"]))
+                route_end = float(active_switch.get("draw_end_m", active_switch["end_m"]))
+                offset_start = float(active_switch.get(
+                    "draw_from_offset_m", active_switch["from_offset_m"]
+                ))
+                offset_end = float(active_switch.get(
+                    "draw_to_offset_m", active_switch["to_offset_m"]
+                ))
+                mirror = -1.0 if self.cab_mirror else 1.0
+                points = []
+                for step in range(33):
+                    t = step / 32
+                    eased = t * t * (3.0 - 2.0 * t)
+                    route_position = route_start + (route_end - route_start) * t
+                    sx = round((line.path.total_length - route_position - camera_x) * scale)
+                    if -12 <= sx <= width + 12:
+                        offset = (offset_start + (offset_end - offset_start) * eased
+                                  - self.main_lane_offset_m) * scale * mirror
+                        sy = rail_y_at(max(0, min(width - 1, sx))) + offset
+                        points.append((sx, round(sy + 4)))
+                if len(points) > 1:
+                    pygame.draw.lines(surface, (35, 220, 255), False, points, 7)
+                    mid = points[len(points) // 2]
+                    pygame.draw.circle(surface, (255, 220, 70), mid, 11)
+                    pygame.draw.circle(surface, (20, 30, 40), mid, 5)
+
         sleeper_spacing = 2.5
         sleeper = int(camera_x / sleeper_spacing) * sleeper_spacing
         while sleeper < camera_x + width / scale:

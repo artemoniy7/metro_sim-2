@@ -1,24 +1,24 @@
 {
   "schema_version": 1,
   "layout_id": "line_15_nekrasovka_terminal_with_inner_tracks",
-  "description": "Два главных тупиковых пути и два внутренних параллельных пути. Один внутренний путь соединён стрелками с обоими внешними и доступен для переключения состава.",
+  "description": "Два внешних тупиковых пути и два внутренних параллельных пути. Первый внутренний соединён стрелками с обоими внешними; второй остаётся изолированным.",
   "reference_station": "Некрасовка",
   "station_position_m": 500,
-  "coordinate_note": "Координаты уже включают виртуальное продолжение 500 м: центральный путь начинается через 50 м после станции (550 м) и заканчивается на 800 м. Первая стрелка переводит состав с главного внешнего пути на центральный, вторая — с центрального на встречный внешний. Второй внутренний путь остаётся изолированным.",
+  "coordinate_note": "Координаты указаны в системе маршрута после виртуального 500-метрового подхода: Некрасовка находится на отметке 500 м. Внешние пути продолжаются от станции до 800 м. Оба внутренних начинаются на отметке 550 м (через 50 м после станции); центральный соединительный путь доходит до 800 м, второй внутренний путь остаётся отдельным.",
   "track_segments": [
     {
       "id": "outer_opposing",
       "label": "Встречный путь — тупик",
       "existing_lane_index": 0,
       "offset_m": 4,
-      "start_m": 0,
-      "end_m": 220,
-      "length_m": 220,
+      "start_m": 500,
+      "end_m": 800,
+      "length_m": 300,
       "terminal": true,
       "terminal_buffer": true
     },
     {
-      "id": "central_connector",
+      "id": "inner_track_1",
       "label": "Центральный соединительный путь",
       "offset_m": 2.6666667,
       "start_m": 550,
@@ -26,13 +26,21 @@
       "length_m": 250
     },
     {
+      "id": "inner_track_2",
+      "label": "Внутренний путь 2",
+      "offset_m": 1.3333333,
+      "start_m": 550,
+      "end_m": 720,
+      "length_m": 170
+    },
+    {
       "id": "outer_main",
       "label": "Главный путь — тупик",
       "existing_lane_index": 1,
       "offset_m": 0,
-      "start_m": 0,
-      "end_m": 220,
-      "length_m": 220,
+      "start_m": 500,
+      "end_m": 800,
+      "length_m": 300,
       "terminal": true,
       "terminal_buffer": true
     }
@@ -64,9 +72,9 @@
     "platform_edge_to_track_start_m": 0,
     "inner_tracks_start_after_station_m": 50,
     "inner_tracks_length_m": 170,
-    "total_length_m": 220,
+    "total_length_m": 300,
     "parallel_tracks": 4,
-    "inner_tracks": 1,
+    "inner_tracks": 2,
     "dead_ends": 2,
     "central_connector": true
   }

@@ -1,4 +1,5 @@
 """Side-on sprite renderer with per-model vehicle profiles."""
+import math
 from pathlib import Path
 import pygame
 from settings import ASSETS_DIR

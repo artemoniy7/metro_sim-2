@@ -101,7 +101,10 @@ class TrackNetwork:
         change = getattr(train, "track_change", None)
         if change:
             return (f"{self.lanes[change['from']].get('label', 'Путь')} → "
-                    f"{self.lanes[change['to']].get('label', 'Путь')}")
+                    f"{change.get('to_label', self.lanes[change['to']].get('label', 'Путь'))}")
+        override_label = getattr(train, "track_offset_label", None)
+        if override_label:
+            return str(override_label)
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
     def request_lane_change(self, train, direction, trains):
@@ -199,6 +202,8 @@ class TrackNetwork:
             matching_lane = next((i for i in range(len(self.lanes))
                                   if abs(self.lane_offset_for_index(i) - target_offset) < 0.15), None)
             train.track_offset_override_m = (None if matching_lane is not None else target_offset)
+            train.track_offset_label = (None if matching_lane is not None
+                                        else change.get("to_label", "Центральный путь"))
             if matching_lane is not None:
                 train.track_index = matching_lane
             train.track_change = None

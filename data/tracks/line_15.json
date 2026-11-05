@@ -47,6 +47,6 @@
   ],
   "station_switches": true,
   "station_switch_interval": 4,
-  "station_switches_skip_after": ["Некрасовка"],
+  "station_switches_skip": ["Некрасовка"],
   "switch_offset_from_station_m": 260
 }

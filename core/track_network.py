@@ -72,8 +72,9 @@ class TrackNetwork:
     def lane_offset(self, train, position=None):
         change = getattr(train, "track_change", None)
         if not change:
-            return float(getattr(train, "track_offset_override_m",
-                                 self.lane_offset_for_index(train.track_index)))
+            override = getattr(train, "track_offset_override_m", None)
+            return (float(override) if override is not None
+                    else self.lane_offset_for_index(train.track_index))
         position = float(train.position if position is None else position)
         span = max(0.001, change["end"] - change["start"])
         blend = self._smoothstep((position - change["start"]) / span)

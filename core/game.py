@@ -21,6 +21,9 @@ class Game:
         line_path = DATA_DIR / "lines" / (line_file or "line_9.json")
         self.line_data = load_json(line_path, default={})
         line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 9)}")
+        local_track_layout = load_json(
+            DATA_DIR / "track_layouts" / f"{line_id}.json", default={}
+        )
         # The line's published chainage starts at Nekrasovka (0 m), but
         # the simulator clamps train positions to the non-negative route.
         # Add a virtual 500 m approach before the origin for line 15, shifting
@@ -46,9 +49,6 @@ class Game:
         # Start directly on the selected line, at the selected station.
         self.line = Line(self.line_data)
         track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
-        local_track_layout = load_json(
-            DATA_DIR / "track_layouts" / f"{line_id}.json", default={}
-        )
         self.track_network = TrackNetwork(self.line, track_data, local_track_layout)
         self.renderer.configure_line_station_sprites(line_id)
         train_path = DATA_DIR / "trains" / (train_file or "81-760.json")

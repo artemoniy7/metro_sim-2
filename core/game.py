@@ -21,12 +21,34 @@ class Game:
         line_path = DATA_DIR / "lines" / (line_file or "line_9.json")
         self.line_data = load_json(line_path, default={})
         line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 9)}")
-        # Start directly on the selected line, at the selected station.
-        self.line = Line(self.line_data)
-        track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
         local_track_layout = load_json(
             DATA_DIR / "track_layouts" / f"{line_id}.json", default={}
         )
+        # The line's published chainage starts at Nekrasovka (0 m), but
+        # the simulator clamps train positions to the non-negative route.
+        # Add a virtual 500 m approach before the origin for line 15, shifting
+        # station chainages without editing the source line JSON.
+        local_origin_extension = float(
+            local_track_layout.get("origin_extension_m", 0.0)
+        ) if line_id == "line_15" else 0.0
+        if local_origin_extension > 0.0:
+            points = self.line_data.get("points", [])
+            if len(points) >= 2:
+                first, second = points[0], points[1]
+                dx, dy = float(second[0]) - float(first[0]), float(second[1]) - float(first[1])
+                segment_length = (dx * dx + dy * dy) ** 0.5
+                if segment_length > 0:
+                    extension_point = [
+                        float(first[0]) - dx / segment_length * local_origin_extension,
+                        float(first[1]) - dy / segment_length * local_origin_extension,
+                    ]
+                    self.line_data["points"] = [extension_point] + points
+                    for station in self.line_data.get("stations", []):
+                        station["position"] = float(station.get("position", 0.0)) + local_origin_extension
+
+        # Start directly on the selected line, at the selected station.
+        self.line = Line(self.line_data)
+        track_data = load_json(DATA_DIR / "tracks" / f"{line_id}.json", default={})
         self.track_network = TrackNetwork(self.line, track_data, local_track_layout)
         self.renderer.configure_line_station_sprites(line_id)
         train_path = DATA_DIR / "trains" / (train_file or "81-760.json")
@@ -44,8 +66,11 @@ class Game:
         if callable(configure_announcements):
             configure_announcements(len(self.line.stations), line_id)
         self.line_max_speed = self.train.max_speed
-        self.train.position = max(0.0, float(start_position))
-        self.end_position = float(end_position) if end_position is not None else self.line.path.total_length
+        self.train.position = max(0.0, float(start_position) + local_origin_extension)
+        self.end_position = (
+            float(end_position) + local_origin_extension
+            if end_position is not None else self.line.path.total_length
+        )
         # Close view of the locomotive, with mouse-wheel zoom and consist panning.
         display_surface = pygame.display.get_surface()
         viewport_size = display_surface.get_size() if display_surface else WINDOW_SIZE

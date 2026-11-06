@@ -25,6 +25,10 @@ class TrackJunctionSystem:
             round(float(route.get("position_m", route.get("start_m", 0.0))), 2),
         )
 
+    @classmethod
+    def cursor_key(cls, route):
+        return cls._junction_key(route)
+
     def matching_routes(self, current_offset, train_direction, tolerance=0.15):
         """Return directed routes available from the train's current track."""
         return [

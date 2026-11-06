@@ -135,30 +135,34 @@ class TrackNetwork:
         return low_end, high_end
 
     @staticmethod
-    def _junction_state_entered(state, front_axle):
-        direction = int(state.get("direction", 1))
-        return (front_axle - float(state["entry"])) * direction >= 0.0
+    def _junction_state_occupied(state, first_end, second_end):
+        """Return whether any part of the consist overlaps the junction zone.
 
-    @staticmethod
-    def _junction_state_cleared(state, tail):
-        direction = int(state.get("direction", 1))
-        return (tail - float(state["exit"])) * direction >= 0.0
+        Occupancy is deliberately independent of travel direction: a train
+        may stop or reverse while its consist is inside the turnout.
+        """
+        zone_start = min(float(state["entry"]), float(state["exit"]))
+        zone_end = max(float(state["entry"]), float(state["exit"]))
+        consist_start = min(float(first_end), float(second_end))
+        consist_end = max(float(first_end), float(second_end))
+        return consist_end >= zone_start and consist_start <= zone_end
 
     def request_lane_change(self, train, direction, trains):
         active_change = getattr(train, "track_change", None)
         pending = getattr(train, "_junction_route_state", None)
-        train_direction = int(
-            (pending or active_change or {}).get(
-                "direction", getattr(train, "direction", 1)
-            )
-        )
-        train_direction = 1 if train_direction >= 0 else -1
-        front_axle, tail = self._junction_train_positions(train, train_direction)
+        train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
 
         if pending:
-            if self._junction_state_entered(pending, front_axle):
+            first_end, second_end = self._junction_train_positions(train, train_direction)
+            occupied = self._junction_state_occupied(
+                pending, first_end, second_end
+            )
+            if occupied:
                 pending["locked"] = True
-            if self._junction_state_cleared(pending, tail):
+            elif pending.get("locked") or train_direction != int(
+                    pending.get("direction", train_direction)):
+                # The whole consist has left the turnout, or reversed before
+                # entering it. Do not keep a stale route reservation forever.
                 train._junction_route_state = None
                 pending = None
                 active_change = None
@@ -166,6 +170,11 @@ class TrackNetwork:
             elif pending.get("locked"):
                 self.last_message = "Стрелка занята — маршрут зафиксирован"
                 return False
+
+        if active_change and pending is None:
+            train_direction = 1 if int(active_change.get(
+                "direction", train_direction
+            )) >= 0 else -1
 
         if pending:
             current_offset = float(pending["from_offset_m"])
@@ -327,11 +336,15 @@ class TrackNetwork:
     def update_train(self, train):
         pending = getattr(train, "_junction_route_state", None)
         if pending:
-            direction = int(pending.get("direction", getattr(train, "direction", 1)))
-            front_axle, tail = self._junction_train_positions(train, direction)
-            if self._junction_state_entered(pending, front_axle):
+            direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
+            first_end, second_end = self._junction_train_positions(train, direction)
+            occupied = self._junction_state_occupied(
+                pending, first_end, second_end
+            )
+            if occupied:
                 pending["locked"] = True
-            if self._junction_state_cleared(pending, tail):
+            elif (pending.get("locked") or direction != int(
+                    pending.get("direction", direction))):
                 train._junction_route_state = None
 
         change = getattr(train, "track_change", None)

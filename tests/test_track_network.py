@@ -87,6 +87,34 @@ class TrackNetworkTests(unittest.TestCase):
         self.network.update_train(train)
         self.assertIsNone(train._junction_route_state)
 
+    def test_reversing_out_of_turnout_cancels_track_transition(self):
+        train = FakeTrain(500, length=154, direction=-1)
+        train.track_change = {
+            "from": 1, "to": 0, "from_offset_m": 0.0,
+            "to_offset_m": -3.43, "start": 368.5, "end": 318.5,
+            "direction": -1, "to_label": "Внутренний путь",
+        }
+        self.network.update_train(train)
+        self.assertIsNotNone(train.track_change)
+
+        train.direction = 1
+        train.position = 600
+        self.network.update_train(train)
+        self.assertIsNone(train.track_change)
+        self.assertEqual(train.track_index, 1)
+
+    def test_transition_completes_when_consist_clears_target_side(self):
+        train = FakeTrain(500, length=154, direction=-1)
+        train.track_change = {
+            "from": 1, "to": 0, "from_offset_m": 0.0,
+            "to_offset_m": -3.43, "start": 368.5, "end": 318.5,
+            "direction": -1, "to_label": "Внутренний путь",
+        }
+        train.position = 298
+        self.network.update_train(train)
+        self.assertIsNone(train.track_change)
+        self.assertEqual(train.track_index, 0)
+
     def test_lane_spacing_is_measured_in_world_metres(self):
         self.assertEqual(len(self.network.lanes), 2)
         self.assertAlmostEqual(self.network.lane_offset_for_index(0), -3.43)

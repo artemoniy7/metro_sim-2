@@ -111,28 +111,58 @@ class TrackNetwork:
             return str(override_label)
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
+    @staticmethod
+    def _junction_train_positions(train, direction):
+        """Approximate the leading axle and consist tail from the loco reference point."""
+        half_loco = max(0.0, float(getattr(train, "loco_length_m", 0.0)) / 2.0)
+        front_axle = float(train.position) + direction * half_loco
+        tail = front_axle - direction * float(getattr(train, "consist_length_m", 0.0))
+        return front_axle, tail
+
+    @staticmethod
+    def _junction_state_entered(state, front_axle):
+        direction = int(state.get("direction", 1))
+        return (front_axle - float(state["entry"])) * direction <= 0.0
+
+    @staticmethod
+    def _junction_state_cleared(state, tail):
+        direction = int(state.get("direction", 1))
+        return (tail - float(state["exit"])) * direction >= 0.0
+
     def request_lane_change(self, train, direction, trains):
         active_change = getattr(train, "track_change", None)
-        if active_change:
-            # A route may be changed while the train is still approaching the
-            # turnout. Once the front has entered the turnout, the selection
-            # is locked until the consist clears it.
-            source_position = float(active_change["start"])
-            source_direction = int(active_change.get(
+        pending = getattr(train, "_junction_route_state", None)
+        train_direction = int(
+            (pending or active_change or {}).get(
                 "direction", getattr(train, "direction", 1)
-            ))
-            if ((float(train.position) - source_position) * source_direction) > 0:
-                self.last_message = "Стрелка уже пройдена — выбор зафиксирован"
+            )
+        )
+        train_direction = 1 if train_direction >= 0 else -1
+        front_axle, tail = self._junction_train_positions(train, train_direction)
+
+        if pending:
+            if self._junction_state_entered(pending, front_axle):
+                pending["locked"] = True
+            if self._junction_state_cleared(pending, tail):
+                train._junction_route_state = None
+                pending = None
+                active_change = None
+                train.track_change = None
+            elif pending.get("locked"):
+                self.last_message = "Стрелка занята — маршрут зафиксирован"
                 return False
+
+        if pending:
+            current_offset = float(pending["from_offset_m"])
+            source_lane = int(pending["from"])
+        elif active_change:
             current_offset = float(active_change.get(
                 "from_offset_m", self.lane_offset(train)
             ))
             source_lane = int(active_change.get("from", train.track_index))
-            train_direction = source_direction
         else:
             current_offset = self.lane_offset(train)
             source_lane = int(train.track_index)
-            train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
 
         local_window = max(self.switch_window, 200.0)
         matching_local = self.junction_system.matching_routes(
@@ -157,8 +187,31 @@ class TrackNetwork:
             # The straight-through route is a real third choice at the
             # turnout, but it needs no lateral transition: the main rails are
             # already rendered by the ordinary line renderer.
+            # Treat the whole grouped junction as one physical zone. The
+            # straight option has no lateral geometry of its own, so derive
+            # the exit boundary from the connected crossover alternatives.
+            entry = float(switch.get("position_m", switch.get("start_m", train.position)))
+            spans = [
+                (float(route.get("start_m", entry)), float(route.get("end_m", entry)))
+                for route in local_candidates
+                if abs(float(route.get("start_m", entry))
+                       - float(route.get("end_m", entry))) > 0.01
+            ]
+            if spans:
+                boundaries = [value for span in spans for value in span]
+                exit_position = (min(boundaries) if train_direction < 0
+                                 else max(boundaries))
+            else:
+                exit_position = entry
+
             if switch.get("route_type") == "straight":
                 train.track_change = None
+                train._junction_route_state = {
+                    "junction_id": self.junction_system.cursor_key(switch),
+                    "entry": entry, "exit": exit_position,
+                    "direction": train_direction, "from": source_lane,
+                    "from_offset_m": current_offset, "locked": False,
+                }
                 self.last_message = (
                     f"Маршрут: {switch.get('to_label', 'Главный путь')} "
                     f"({selected_index + 1}/{len(local_candidates)})"
@@ -181,6 +234,12 @@ class TrackNetwork:
                 "junction_id": switch.get("junction_id"),
                 "to_label": switch.get("to_label", "Дополнительный путь"),
                 "direction": train_direction,
+            }
+            train._junction_route_state = {
+                "junction_id": self.junction_system.cursor_key(switch),
+                "entry": entry, "exit": exit_position,
+                "direction": train_direction, "from": source_lane,
+                "from_offset_m": current_offset, "locked": False,
             }
             self.last_message = (
                 f"Маршрут: {switch.get('to_label', 'дополнительный путь')} "
@@ -251,13 +310,21 @@ class TrackNetwork:
         return True
 
     def update_train(self, train):
+        pending = getattr(train, "_junction_route_state", None)
+        if pending:
+            direction = int(pending.get("direction", getattr(train, "direction", 1)))
+            front_axle, tail = self._junction_train_positions(train, direction)
+            if self._junction_state_entered(pending, front_axle):
+                pending["locked"] = True
+            if self._junction_state_cleared(pending, tail):
+                train._junction_route_state = None
+
         change = getattr(train, "track_change", None)
         if not change:
             return
         # Reserve both connected tracks until the tail of the consist clears.
         train_direction = int(change.get("direction", getattr(train, "direction", 1)))
-        rear_position = (float(train.position)
-                         - train_direction * float(getattr(train, "consist_length_m", 0.0)))
+        _, rear_position = self._junction_train_positions(train, train_direction)
         cleared = (rear_position >= change["end"] if train_direction >= 0
                    else rear_position <= change["end"])
         if cleared:

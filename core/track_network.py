@@ -342,9 +342,19 @@ class TrackNetwork:
             )
             if occupied:
                 pending["locked"] = True
-            elif (pending.get("locked") or direction != int(
-                    pending.get("direction", direction))):
-                train._junction_route_state = None
+            else:
+                zone_start = min(float(pending["entry"]), float(pending["exit"]))
+                zone_end = max(float(pending["entry"]), float(pending["exit"]))
+                consist_start = min(first_end, second_end)
+                consist_end = max(first_end, second_end)
+                passed_without_entry = (
+                    direction > 0 and consist_start > zone_end
+                ) or (
+                    direction < 0 and consist_end < zone_start
+                )
+                direction_changed = direction != int(pending.get("direction", direction))
+                if pending.get("locked") or direction_changed or passed_without_entry:
+                    train._junction_route_state = None
 
         change = getattr(train, "track_change", None)
         if not change:

@@ -122,7 +122,7 @@ class TrackNetwork:
     @staticmethod
     def _junction_state_entered(state, front_axle):
         direction = int(state.get("direction", 1))
-        return (front_axle - float(state["entry"])) * direction <= 0.0
+        return (front_axle - float(state["entry"])) * direction >= 0.0
 
     @staticmethod
     def _junction_state_cleared(state, tail):

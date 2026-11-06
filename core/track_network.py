@@ -112,13 +112,28 @@ class TrackNetwork:
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
     def request_lane_change(self, train, direction, trains):
-        if getattr(train, "track_change", None):
-            self.last_message = "Сначала завершите перевод"
-            return False
+        active_change = getattr(train, "track_change", None)
+        if active_change:
+            # A route may be changed while the train is still approaching the
+            # turnout. Once the front has entered the turnout, the selection
+            # is locked until the consist clears it.
+            source_position = float(active_change["start"])
+            source_direction = int(active_change.get(
+                "direction", getattr(train, "direction", 1)
+            ))
+            if ((float(train.position) - source_position) * source_direction) > 0:
+                self.last_message = "Стрелка уже пройдена — выбор зафиксирован"
+                return False
+            current_offset = float(active_change.get(
+                "from_offset_m", self.lane_offset(train)
+            ))
+            source_lane = int(active_change.get("from", train.track_index))
+            train_direction = source_direction
+        else:
+            current_offset = self.lane_offset(train)
+            source_lane = int(train.track_index)
+            train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
 
-        # Resolve local routes through the reusable junction subsystem.
-        current_offset = self.lane_offset(train)
-        train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
         local_window = max(self.switch_window, 200.0)
         matching_local = self.junction_system.matching_routes(
             current_offset=current_offset,
@@ -135,10 +150,21 @@ class TrackNetwork:
             switch = self.junction_system.choose_route(
                 local_candidates, direction, cursor
             )
-            cursor[self.junction_system.cursor_key(switch)] = (
-                self.junction_system.route_index(local_candidates, switch)
-            )
+            selected_index = self.junction_system.route_index(local_candidates, switch)
+            cursor[self.junction_system.cursor_key(switch)] = selected_index
             train._junction_route_cursor = cursor
+
+            # The straight-through route is a real third choice at the
+            # turnout, but it needs no lateral transition: the main rails are
+            # already rendered by the ordinary line renderer.
+            if switch.get("route_type") == "straight":
+                train.track_change = None
+                self.last_message = (
+                    f"Маршрут: {switch.get('to_label', 'Главный путь')} "
+                    f"({selected_index + 1}/{len(local_candidates)})"
+                )
+                return True
+
             start = float(switch["start_m"])
             end = float(switch["end_m"])
             if (end - start) * train_direction <= 0:
@@ -147,9 +173,9 @@ class TrackNetwork:
             target_offset = float(switch["to_offset_m"])
             target_lane = next((i for i in range(len(self.lanes))
                                 if abs(self.lane_offset_for_index(i) - target_offset) < 0.15),
-                               int(train.track_index))
+                               source_lane)
             train.track_change = {
-                "from": int(train.track_index), "to": target_lane,
+                "from": source_lane, "to": target_lane,
                 "from_offset_m": current_offset, "to_offset_m": target_offset,
                 "start": start, "end": end, "switch": switch.get("id", "LOCAL"),
                 "junction_id": switch.get("junction_id"),
@@ -158,8 +184,7 @@ class TrackNetwork:
             }
             self.last_message = (
                 f"Маршрут: {switch.get('to_label', 'дополнительный путь')} "
-                f"({self.junction_system.route_index(local_candidates, switch) + 1}/"
-                f"{len(local_candidates)})"
+                f"({selected_index + 1}/{len(local_candidates)})"
             )
             return True
 

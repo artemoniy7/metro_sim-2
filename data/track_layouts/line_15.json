@@ -95,7 +95,7 @@
       "draw_end_m": 318.5,
       "travel_direction": -1,
       "junction_id": "nekrasovka_main_to_turnback",
-      "route_order": 1
+      "route_order": 0
     },
     {
       "id": "LOCAL-MAIN-INNER-2",
@@ -112,12 +112,12 @@
       "draw_end_m": 318.5,
       "travel_direction": -1,
       "junction_id": "nekrasovka_main_to_turnback",
-      "route_order": 2
+      "route_order": 1
     },
     {
       "id": "LOCAL-MAIN-STRAIGHT",
       "junction_id": "nekrasovka_main_to_turnback",
-      "route_order": 0,
+      "route_order": 2,
       "route_type": "straight",
       "position_m": 368.5,
       "start_m": 368.5,

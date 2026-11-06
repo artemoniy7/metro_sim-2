@@ -2,6 +2,7 @@
 import unittest
 
 from core.track_network import TrackNetwork
+from core.track_junctions import TrackJunctionSystem
 
 
 class FakePath:
@@ -86,6 +87,34 @@ class TrackNetworkTests(unittest.TestCase):
         train.direction = 1
         self.network.update_train(train)
         self.assertIsNone(train._junction_route_state)
+
+    def test_unentered_junction_selection_expires_after_turnout_is_passed(self):
+        train = FakeTrain(510, length=154, direction=-1)
+        train._junction_route_state = {
+            "entry": 368.5, "exit": 318.5, "direction": -1,
+            "from": 1, "from_offset_m": 0.0, "locked": False,
+        }
+        # The whole consist has passed the far edge without an occupancy
+        # update; this stale selection must not keep blocking later choices.
+        train.position = 150
+        self.network.update_train(train)
+        self.assertIsNone(train._junction_route_state)
+
+    def test_first_q_and_e_choices_are_the_two_turnback_routes(self):
+        routes = [
+            {"id": "inner_1", "junction_id": "nekrasovka", "route_order": 0,
+             "to_offset_m": 2.6667},
+            {"id": "inner_2", "junction_id": "nekrasovka", "route_order": 1,
+             "to_offset_m": 1.3333},
+            {"id": "straight", "junction_id": "nekrasovka", "route_order": 2,
+             "route_type": "straight", "to_offset_m": 0.0},
+        ]
+        system = TrackJunctionSystem(routes)
+        ordered = system.available_routes(
+            routes, position=368.5, train_direction=-1, window=200
+        )
+        self.assertEqual(system.choose_route(ordered, -1)["id"], "inner_1")
+        self.assertEqual(system.choose_route(ordered, 1)["id"], "inner_2")
 
     def test_reversing_out_of_turnout_cancels_track_transition(self):
         train = FakeTrain(500, length=154, direction=-1)

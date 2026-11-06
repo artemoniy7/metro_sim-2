@@ -159,7 +159,9 @@ class TrackNetwork:
             )
             if occupied:
                 pending["locked"] = True
-            elif pending.get("locked") or train_direction != int(
+                self.last_message = "Стрелка занята — маршрут зафиксирован"
+                return False
+            if pending.get("locked") or train_direction != int(
                     pending.get("direction", train_direction)):
                 # The whole consist has left the turnout, or reversed before
                 # entering it. Do not keep a stale route reservation forever.
@@ -167,9 +169,6 @@ class TrackNetwork:
                 pending = None
                 active_change = None
                 train.track_change = None
-            elif pending.get("locked"):
-                self.last_message = "Стрелка занята — маршрут зафиксирован"
-                return False
 
         if active_change and pending is None:
             train_direction = 1 if int(active_change.get(

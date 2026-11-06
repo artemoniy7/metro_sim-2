@@ -43,19 +43,77 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertEqual(self.network._junction_train_positions(train, 1), (520.0, 366.0))
         self.assertEqual(self.network._junction_train_positions(train, -1), (366.0, 520.0))
 
-    def test_junction_entry_and_clear_follow_leading_and_trailing_ends(self):
+    def test_junction_occupancy_uses_both_ends_of_full_consist(self):
         state = {"direction": -1, "entry": 368.5, "exit": 318.5}
         train = FakeTrain(510, length=154, direction=-1)
-        front, tail = self.network._junction_train_positions(train, -1)
-        self.assertFalse(self.network._junction_state_entered(state, front))
-        self.assertFalse(self.network._junction_state_cleared(state, tail))
+        first, second = self.network._junction_train_positions(train, -1)
+        self.assertFalse(self.network._junction_state_occupied(state, first, second))
         train.position = 500
-        front, tail = self.network._junction_train_positions(train, -1)
-        self.assertTrue(self.network._junction_state_entered(state, front))
-        self.assertFalse(self.network._junction_state_cleared(state, tail))
+        first, second = self.network._junction_train_positions(train, -1)
+        self.assertTrue(self.network._junction_state_occupied(state, first, second))
         train.position = 298
-        front, tail = self.network._junction_train_positions(train, -1)
-        self.assertTrue(self.network._junction_state_cleared(state, tail))
+        first, second = self.network._junction_train_positions(train, -1)
+        self.assertFalse(self.network._junction_state_occupied(state, first, second))
+
+    def test_locked_junction_is_released_after_train_reverses_and_leaves(self):
+        train = FakeTrain(500, length=154, direction=-1)
+        train._junction_route_state = {
+            "entry": 368.5, "exit": 318.5, "direction": -1,
+            "from": 1, "from_offset_m": 0.0, "locked": False,
+        }
+        self.network.update_train(train)
+        self.assertTrue(train._junction_route_state["locked"])
+
+        # Reversing inside the turnout must keep the route locked while any
+        # part of the consist still occupies the physical junction zone.
+        train.direction = 1
+        self.network.update_train(train)
+        self.assertIsNotNone(train._junction_route_state)
+        self.assertTrue(train._junction_route_state["locked"])
+
+        # Once the whole consist has moved clear in the new direction,
+        # the old reservation must be released.
+        train.position = 600
+        self.network.update_train(train)
+        self.assertIsNone(train._junction_route_state)
+
+    def test_unentered_junction_selection_is_cleared_if_train_reverses(self):
+        train = FakeTrain(510, length=154, direction=-1)
+        train._junction_route_state = {
+            "entry": 368.5, "exit": 318.5, "direction": -1,
+            "from": 1, "from_offset_m": 0.0, "locked": False,
+        }
+        train.direction = 1
+        self.network.update_train(train)
+        self.assertIsNone(train._junction_route_state)
+
+    def test_reversing_out_of_turnout_cancels_track_transition(self):
+        train = FakeTrain(500, length=154, direction=-1)
+        train.track_change = {
+            "from": 1, "to": 0, "from_offset_m": 0.0,
+            "to_offset_m": -3.43, "start": 368.5, "end": 318.5,
+            "direction": -1, "to_label": "Внутренний путь",
+        }
+        self.network.update_train(train)
+        self.assertIsNotNone(train.track_change)
+
+        train.direction = 1
+        train.position = 600
+        self.network.update_train(train)
+        self.assertIsNone(train.track_change)
+        self.assertEqual(train.track_index, 1)
+
+    def test_transition_completes_when_consist_clears_target_side(self):
+        train = FakeTrain(500, length=154, direction=-1)
+        train.track_change = {
+            "from": 1, "to": 0, "from_offset_m": 0.0,
+            "to_offset_m": -3.43, "start": 368.5, "end": 318.5,
+            "direction": -1, "to_label": "Внутренний путь",
+        }
+        train.position = 298
+        self.network.update_train(train)
+        self.assertIsNone(train.track_change)
+        self.assertEqual(train.track_index, 0)
 
     def test_lane_spacing_is_measured_in_world_metres(self):
         self.assertEqual(len(self.network.lanes), 2)

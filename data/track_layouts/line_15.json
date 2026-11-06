@@ -59,7 +59,9 @@
       "draw_to_offset_m": 0,
       "draw_start_m": 318.5,
       "draw_end_m": 368.5,
-      "travel_direction": 1
+      "travel_direction": 1,
+      "junction_id": "nekrasovka_turnback_to_main_inner_1",
+      "route_order": 0
     },
     {
       "id": "LOCAL-INNER-2-MAIN",
@@ -74,7 +76,9 @@
       "draw_to_offset_m": 0,
       "draw_start_m": 318.5,
       "draw_end_m": 368.5,
-      "travel_direction": 1
+      "travel_direction": 1,
+      "junction_id": "nekrasovka_turnback_to_main_inner_2",
+      "route_order": 0
     },
     {
       "id": "LOCAL-MAIN-INNER-1",
@@ -89,7 +93,9 @@
       "draw_to_offset_m": 2.6666667,
       "draw_start_m": 368.5,
       "draw_end_m": 318.5,
-      "travel_direction": -1
+      "travel_direction": -1,
+      "junction_id": "nekrasovka_main_to_turnback",
+      "route_order": 0
     },
     {
       "id": "LOCAL-MAIN-INNER-2",
@@ -104,7 +110,9 @@
       "draw_to_offset_m": 1.3333333,
       "draw_start_m": 368.5,
       "draw_end_m": 318.5,
-      "travel_direction": -1
+      "travel_direction": -1,
+      "junction_id": "nekrasovka_main_to_turnback",
+      "route_order": 1
     }
   ],
   "origin_extension_m": 500,

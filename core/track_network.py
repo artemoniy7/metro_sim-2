@@ -1,4 +1,5 @@
 """Parallel-track layout with world-space offsets and safe crossovers."""
+from core.track_junctions import TrackJunctionSystem
 class TrackNetwork:
     def __init__(self, line, data=None, local_layout=None):
         data = data or {}
@@ -46,6 +47,7 @@ class TrackNetwork:
         local_layout = local_layout or {}
         self.local_track_segments = list(local_layout.get("track_segments", []))
         self.local_switches = list(local_layout.get("switches", []))
+        self.junction_system = TrackJunctionSystem(self.local_switches)
         self.last_message = ""
 
     @staticmethod
@@ -114,31 +116,29 @@ class TrackNetwork:
             self.last_message = "Сначала завершите перевод"
             return False
 
-        # Local terminal crossovers are explicit bidirectional connections.
-        # Their coordinate order follows the train's direction of travel.
+        # Resolve local routes through the reusable junction subsystem.
         current_offset = self.lane_offset(train)
         train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
-        # Local terminal turnouts sit just beyond the station platform.
-        # Let the driver select them while still at the platform: the old
-        # 120 m window was shorter than the 131.5 m distance from the
-        # Nekrasovka station center (500 m) to the reverse turnout entry (368.5 m).
         local_window = max(self.switch_window, 200.0)
-        matching_local = [
-            item for item in self.local_switches
-            if abs(float(item.get("from_offset_m", 0.0)) - current_offset) < 0.15
-            and int(item.get("travel_direction", 1)) == train_direction
-        ]
-        local_candidates = [
-            item for item in matching_local
-            if 0.0 <= (
-                float(item.get("position_m", item.get("start_m", 0.0)))
-                - float(train.position)
-            ) * train_direction <= local_window
-        ]
+        matching_local = self.junction_system.matching_routes(
+            current_offset=current_offset,
+            train_direction=train_direction,
+        )
+        local_candidates = self.junction_system.available_routes(
+            matching_local,
+            position=float(train.position),
+            train_direction=train_direction,
+            window=local_window,
+        )
         if local_candidates:
-            local_candidates.sort(key=lambda item: float(item.get("to_offset_m", 0.0)))
-            selected_index = 0 if direction < 0 else min(1, len(local_candidates) - 1)
-            switch = local_candidates[selected_index]
+            cursor = getattr(train, "_junction_route_cursor", {})
+            switch = self.junction_system.choose_route(
+                local_candidates, direction, cursor
+            )
+            cursor[self.junction_system.cursor_key(switch)] = (
+                self.junction_system.route_index(local_candidates, switch)
+            )
+            train._junction_route_cursor = cursor
             start = float(switch["start_m"])
             end = float(switch["end_m"])
             if (end - start) * train_direction <= 0:
@@ -152,10 +152,15 @@ class TrackNetwork:
                 "from": int(train.track_index), "to": target_lane,
                 "from_offset_m": current_offset, "to_offset_m": target_offset,
                 "start": start, "end": end, "switch": switch.get("id", "LOCAL"),
+                "junction_id": switch.get("junction_id"),
                 "to_label": switch.get("to_label", "Дополнительный путь"),
                 "direction": train_direction,
             }
-            self.last_message = f"Маршрут: {switch.get('to_label', 'дополнительный путь')}"
+            self.last_message = (
+                f"Маршрут: {switch.get('to_label', 'дополнительный путь')} "
+                f"({self.junction_system.route_index(local_candidates, switch) + 1}/"
+                f"{len(local_candidates)})"
+            )
             return True
 
         # If a local connection exists for this track and direction but is

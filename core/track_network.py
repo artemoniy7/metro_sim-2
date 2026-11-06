@@ -349,12 +349,25 @@ class TrackNetwork:
         change = getattr(train, "track_change", None)
         if not change:
             return
-        # Reserve both connected tracks until the tail of the consist clears.
-        train_direction = int(change.get("direction", getattr(train, "direction", 1)))
-        _, rear_position = self._junction_train_positions(train, train_direction)
-        cleared = (rear_position >= change["end"] if train_direction >= 0
-                   else rear_position <= change["end"])
-        if cleared:
+
+        first_end, second_end = self._junction_train_positions(
+            train, int(getattr(train, "direction", 1))
+        )
+        consist_start = min(first_end, second_end)
+        consist_end = max(first_end, second_end)
+        transition_start = min(float(change["start"]), float(change["end"]))
+        transition_end = max(float(change["start"]), float(change["end"]))
+        if consist_end >= transition_start and consist_start <= transition_end:
+            return
+
+        # A reversal can take the consist back out through the source end.
+        # Resolve the transition from the side the entire consist actually
+        # occupies, rather than waiting forever for the original direction.
+        cleared_at_target = (
+            consist_end < transition_start if float(change["end"]) < float(change["start"])
+            else consist_start > transition_end
+        )
+        if cleared_at_target:
             target_offset = float(change.get("to_offset_m",
                                       self.lane_offset_for_index(change["to"])))
             train.track_index = change["to"]
@@ -365,5 +378,16 @@ class TrackNetwork:
                                         else change.get("to_label", "Центральный путь"))
             if matching_lane is not None:
                 train.track_index = matching_lane
-            train.track_change = None
             self.last_message = f"Занят {change.get('to_label', self.lanes[train.track_index].get('label', 'путь'))}"
+        else:
+            source_offset = float(change.get("from_offset_m",
+                                      self.lane_offset_for_index(change["from"])))
+            train.track_index = int(change["from"])
+            matching_lane = next((i for i in range(len(self.lanes))
+                                  if abs(self.lane_offset_for_index(i) - source_offset) < 0.15), None)
+            train.track_offset_override_m = (None if matching_lane is not None else source_offset)
+            train.track_offset_label = None
+            if matching_lane is not None:
+                train.track_index = matching_lane
+            self.last_message = "Возврат на исходный путь"
+        train.track_change = None

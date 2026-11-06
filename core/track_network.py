@@ -135,7 +135,7 @@ class TrackNetwork:
             switch = self.junction_system.choose_route(
                 local_candidates, direction, cursor
             )
-            cursor[switch.get("junction_id", switch.get("id", "local"))] = (
+            cursor[self.junction_system.cursor_key(switch)] = (
                 self.junction_system.route_index(local_candidates, switch)
             )
             train._junction_route_cursor = cursor

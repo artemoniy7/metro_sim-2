@@ -38,6 +38,25 @@ class TrackNetworkTests(unittest.TestCase):
             "switch_window_m": 120,
         })
 
+    def test_junction_positions_use_both_outer_ends_of_full_consist(self):
+        train = FakeTrain(500, length=154, direction=1)
+        self.assertEqual(self.network._junction_train_positions(train, 1), (520.0, 366.0))
+        self.assertEqual(self.network._junction_train_positions(train, -1), (366.0, 520.0))
+
+    def test_junction_entry_and_clear_follow_leading_and_trailing_ends(self):
+        state = {"direction": -1, "entry": 368.5, "exit": 318.5}
+        train = FakeTrain(510, length=154, direction=-1)
+        front, tail = self.network._junction_train_positions(train, -1)
+        self.assertFalse(self.network._junction_state_entered(state, front))
+        self.assertFalse(self.network._junction_state_cleared(state, tail))
+        train.position = 500
+        front, tail = self.network._junction_train_positions(train, -1)
+        self.assertTrue(self.network._junction_state_entered(state, front))
+        self.assertFalse(self.network._junction_state_cleared(state, tail))
+        train.position = 298
+        front, tail = self.network._junction_train_positions(train, -1)
+        self.assertTrue(self.network._junction_state_cleared(state, tail))
+
     def test_lane_spacing_is_measured_in_world_metres(self):
         self.assertEqual(len(self.network.lanes), 2)
         self.assertAlmostEqual(self.network.lane_offset_for_index(0), -3.43)

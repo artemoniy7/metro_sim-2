@@ -113,11 +113,26 @@ class TrackNetwork:
 
     @staticmethod
     def _junction_train_positions(train, direction):
-        """Approximate the leading axle and consist tail from the loco reference point."""
-        half_loco = max(0.0, float(getattr(train, "loco_length_m", 0.0)) / 2.0)
-        front_axle = float(train.position) + direction * half_loco
-        tail = front_axle - direction * float(getattr(train, "consist_length_m", 0.0))
-        return front_axle, tail
+        """Return the leading and trailing outer wheel positions of the whole consist.
+
+        ``train.position`` is anchored at the index-0 cab, not at the consist
+        centre. The rendered consist extends one locomotive length in the
+        increasing-coordinate direction and the remaining consist length in
+        the decreasing-coordinate direction. Use those two physical ends so
+        junction locking follows the first and last wheelsets, including when
+        the train reverses.
+        """
+        direction = 1 if int(direction) >= 0 else -1
+        anchor = float(train.position)
+        loco_length = max(0.0, float(getattr(train, "loco_length_m", 0.0)))
+        consist_length = max(
+            loco_length, float(getattr(train, "consist_length_m", loco_length))
+        )
+        low_end = anchor - (consist_length - loco_length)
+        high_end = anchor + loco_length
+        if direction > 0:
+            return high_end, low_end
+        return low_end, high_end
 
     @staticmethod
     def _junction_state_entered(state, front_axle):

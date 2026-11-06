@@ -53,7 +53,7 @@ class TrackNetworkTests(unittest.TestCase):
         front, tail = self.network._junction_train_positions(train, -1)
         self.assertTrue(self.network._junction_state_entered(state, front))
         self.assertFalse(self.network._junction_state_cleared(state, tail))
-        train.position = 452
+        train.position = 298
         front, tail = self.network._junction_train_positions(train, -1)
         self.assertTrue(self.network._junction_state_cleared(state, tail))
 

@@ -117,3 +117,14 @@ class TrackNetwork:
         """
         self.last_message = "Переключение путей временно отключено"
         return False
+
+    def update_train(self, train):
+        """Keep the game update hook while track switching is disabled.
+
+        This intentionally performs no route selection or track movement.
+        It only clears any leftover legacy transition state.
+        """
+        if getattr(train, "track_change", None) is not None:
+            train.track_change = None
+        if getattr(train, "_junction_route_state", None) is not None:
+            train._junction_route_state = None

@@ -177,6 +177,10 @@ class Game:
                 toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)
                 if callable(toggle_announcer):
                     toggle_announcer(self.train, self.line)
+            elif event.key == pygame.K_q:
+                self.track_network.request_route_selection(self.train, -1)
+            elif event.key == pygame.K_e:
+                self.track_network.request_route_selection(self.train, 1)
             elif event.key == pygame.K_LEFT:
                 self.camera.pan(-1, self.train)
             elif event.key == pygame.K_RIGHT:

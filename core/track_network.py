@@ -1,4 +1,5 @@
-"""Parallel-track layout with world-space offsets and safe crossovers."""
+"""Parallel-track layout with entry/exit based local junction routing."""
+from core.track_junctions import TrackJunctionSystem
 class TrackNetwork:
     def __init__(self, line, data=None, local_layout=None):
         data = data or {}
@@ -46,6 +47,7 @@ class TrackNetwork:
         local_layout = local_layout or {}
         self.local_track_segments = list(local_layout.get("track_segments", []))
         self.local_switches = list(local_layout.get("switches", []))
+        self.junctions = TrackJunctionSystem(self.local_switches)
         self.last_message = ""
 
     @staticmethod
@@ -109,22 +111,112 @@ class TrackNetwork:
             return str(override_label)
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
-    def request_lane_change(self, train, direction, trains):
-        """Track switching is intentionally disabled during the junction rewrite.
+    @staticmethod
+    def _train_edges(train):
+        """Estimate consist ends from the cab-0 anchor; exact wheelsets are not modeled."""
+        anchor = float(train.position)
+        loco = max(0.0, float(getattr(train, "loco_length_m", 0.0)))
+        length = max(loco, float(getattr(train, "consist_length_m", loco)))
+        low, high = anchor - max(0.0, length - loco), anchor + loco
+        return (high, low) if int(getattr(train, "direction", 1)) >= 0 else (low, high)
 
-        Track geometry, route metadata and renderer inputs remain available;
-        only movement between tracks is disabled.
-        """
-        self.last_message = "Переключение путей временно отключено"
-        return False
+    @staticmethod
+    def _crossed(previous, current, point, direction):
+        return previous is not None and (previous - point) * direction < 0 <= (current - point) * direction
+
+    def _current_offset(self, train):
+        active = getattr(train, "_junction_active_zones", [])
+        if active:
+            return float(active[-1]["to_offset_m"])
+        override = getattr(train, "track_offset_override_m", None)
+        return float(override) if override is not None else self.lane_offset_for_index(train.track_index)
+
+    def request_route_selection(self, train, direction):
+        leading, _ = self._train_edges(train)
+        travel = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
+        routes = self.junctions.matching_routes(self._current_offset(train), travel)
+        options = self.junctions.available_routes(routes, leading, travel, self.switch_window)
+        if not options:
+            self.last_message = "Впереди нет доступной стрелки"
+            return False
+        key = self.junctions.cursor_key(options[0])
+        active = getattr(train, "_junction_active_zones", [])
+        if any(zone["junction_key"] == key for zone in active):
+            self.last_message = "Маршрут уже зафиксирован"
+            return False
+        selections = getattr(train, "_junction_route_selection", {})
+        cursor = getattr(train, "_junction_route_cursor", {})
+        selected = selections.get(key)
+        if selected is not None:
+            cursor[key] = self.junctions.route_index(options, selected)
+        chosen = self.junctions.choose_route(options, direction, cursor)
+        cursor[key] = self.junctions.route_index(options, chosen)
+        selections[key] = chosen
+        train._junction_route_selection = selections
+        train._junction_route_cursor = cursor
+        self.last_message = "Маршрут: " + str(chosen.get("to_label", chosen.get("id", "выбран")))
+        return True
+
+    def request_lane_change(self, train, direction, trains):
+        """Compatibility wrapper for the former Q/E switching entry point."""
+        return self.request_route_selection(train, direction)
 
     def update_train(self, train):
-        """Keep the game update hook while track switching is disabled.
-
-        This intentionally performs no route selection or track movement.
-        It only clears any leftover legacy transition state.
-        """
-        if getattr(train, "track_change", None) is not None:
+        """Lock the chosen route at entry and release its zone after the tail clears exit."""
+        leading, trailing = self._train_edges(train)
+        travel = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
+        previous = getattr(train, "_junction_previous_edges", (None, None))
+        prev_lead, prev_tail = previous
+        active = list(getattr(train, "_junction_active_zones", []))
+        selections = getattr(train, "_junction_route_selection", {})
+        offset = self._current_offset(train)
+        crossed = {}
+        for route in self.junctions.matching_routes(offset, travel):
+            entry = float(route.get("position_m", route.get("start_m", 0.0)))
+            if self._crossed(prev_lead, leading, entry, travel):
+                crossed.setdefault(self.junctions.cursor_key(route), []).append(route)
+        for key, group in crossed.items():
+            if any(zone["junction_key"] == key for zone in active):
+                continue
+            group.sort(key=lambda route: (int(route.get("route_order", 0)), str(route.get("id", ""))))
+            wanted = selections.pop(key, None)
+            route = next((item for item in group if wanted and item.get("id") == wanted.get("id")), group[0])
+            entry = float(route.get("position_m", route.get("start_m", 0.0)))
+            exit_point = float(route.get("end_m", entry))
+            zone = {
+                "junction_key": key, "route_id": route.get("id"),
+                "entry": entry, "exit": exit_point, "direction": travel,
+                "from_offset_m": float(route.get("from_offset_m", offset)),
+                "to_offset_m": float(route.get("to_offset_m", offset)),
+                "to_label": route.get("to_label", route.get("id", "Путь")),
+            }
+            active.append(zone)
+            train.track_change = {
+                "from": train.track_index, "to": train.track_index,
+                "start": entry, "end": exit_point,
+                "from_offset_m": zone["from_offset_m"],
+                "to_offset_m": zone["to_offset_m"],
+                "to_label": zone["to_label"], "switch": zone["route_id"],
+            }
+        remaining = []
+        cleared_offset = None
+        for zone in active:
+            if self._crossed(prev_tail, trailing, zone["exit"], zone["direction"]):
+                cleared_offset = zone["to_offset_m"]
+                train.track_offset_label = zone["to_label"]
+            else:
+                remaining.append(zone)
+        train._junction_active_zones = remaining
+        if remaining:
+            zone = remaining[-1]
+            train.track_change = {
+                "from": train.track_index, "to": train.track_index,
+                "start": zone["entry"], "end": zone["exit"],
+                "from_offset_m": zone["from_offset_m"],
+                "to_offset_m": zone["to_offset_m"],
+                "to_label": zone["to_label"], "switch": zone["route_id"],
+            }
+        elif cleared_offset is not None:
             train.track_change = None
-        if getattr(train, "_junction_route_state", None) is not None:
-            train._junction_route_state = None
+            train.track_offset_override_m = cleared_offset
+        train._junction_previous_edges = (leading, trailing)

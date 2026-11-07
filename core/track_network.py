@@ -148,6 +148,15 @@ class TrackNetwork:
         return consist_end >= zone_start and consist_start <= zone_end
 
     def request_lane_change(self, train, direction, trains):
+        """Track switching is intentionally disabled during the junction rewrite.
+
+        Track geometry, route metadata and renderer inputs remain available;
+        only movement between tracks is disabled.
+        """
+        self.last_message = "Переключение путей временно отключено"
+        return False
+
+    def _legacy_request_lane_change(self, train, direction, trains):
         active_change = getattr(train, "track_change", None)
         pending = getattr(train, "_junction_route_state", None)
         train_direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
@@ -333,6 +342,14 @@ class TrackNetwork:
         return True
 
     def update_train(self, train):
+        """Keep trains on their current track while switching is disabled."""
+        if getattr(train, "track_change", None) is not None:
+            train.track_change = None
+        if getattr(train, "_junction_route_state", None) is not None:
+            train._junction_route_state = None
+        return
+
+    def _legacy_update_train(self, train):
         pending = getattr(train, "_junction_route_state", None)
         if pending:
             direction = 1 if int(getattr(train, "direction", 1)) >= 0 else -1

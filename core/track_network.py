@@ -71,6 +71,16 @@ class TrackNetwork:
             return float(lane["offset_m"])
         return float(lane.get("offset_px", 0.0)) / 28.0
 
+    @classmethod
+    def _transition_blend(cls, change, position):
+        """Return a safe 0..1 transition blend, including zero-length changes."""
+        start = float(change["start"])
+        end = float(change["end"])
+        if abs(end - start) <= 1e-9:
+            # A zero-length transition is instantaneous; avoid dividing by zero.
+            return 1.0
+        return cls._smoothstep((float(position) - start) / (end - start))
+
     def lane_offset(self, train, position=None):
         change = getattr(train, "track_change", None)
         if not change:
@@ -78,10 +88,7 @@ class TrackNetwork:
             return (float(override) if override is not None
                     else self.lane_offset_for_index(train.track_index))
         position = float(train.position if position is None else position)
-        span = max(0.001, abs(change["end"] - change["start"]))
-        blend = self._smoothstep(
-            (position - change["start"]) / (change["end"] - change["start"])
-        )
+        blend = self._transition_blend(change, position)
         start = float(change.get("from_offset_m", self.lane_offset_for_index(change["from"])))
         end = float(change.get("to_offset_m", self.lane_offset_for_index(change["to"])))
         return start + (end - start) * blend
@@ -91,9 +98,7 @@ class TrackNetwork:
         lane_index = train.track_index
         if change:
             position = float(train.position if position is None else position)
-            blend = self._smoothstep(
-                (position - change["start"]) / (change["end"] - change["start"])
-            )
+            blend = self._transition_blend(change, position)
             if blend >= 0.5:
                 lane_index = change["to"]
         tint = self.lanes[max(0, min(len(self.lanes) - 1, lane_index))].get(

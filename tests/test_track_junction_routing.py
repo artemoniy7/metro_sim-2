@@ -91,5 +91,26 @@ class JunctionRoutingTests(unittest.TestCase):
         self.network.update_train(train)
         self.assertTrue(any(z["route_id"] == "forward" for z in train._junction_active_zones))
 
+
+    def test_zero_length_track_change_is_instant_and_safe(self):
+        train = FakeTrain(100)
+        train.track_change = {
+            "from": 1, "to": 1, "start": 100, "end": 100,
+            "from_offset_m": 0.0, "to_offset_m": 4.0,
+        }
+        self.assertAlmostEqual(self.network.lane_offset(train), 4.0)
+        self.assertEqual(self.network.tint_for_train(train), (255, 255, 255))
+
+    def test_zero_length_track_change_is_safe_in_both_directions(self):
+        train = FakeTrain(99)
+        train.track_change = {
+            "from": 1, "to": 1, "start": 100, "end": 100,
+            "from_offset_m": -2.0, "to_offset_m": 3.5,
+        }
+        self.assertAlmostEqual(self.network.lane_offset(train, 99), 3.5)
+        self.assertAlmostEqual(self.network.lane_offset(train, 101), 3.5)
+        self.network.tint_for_train(train, 99)
+        self.network.tint_for_train(train, 101)
+
 if __name__ == "__main__":
     unittest.main()

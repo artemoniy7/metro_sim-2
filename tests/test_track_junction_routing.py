@@ -33,6 +33,14 @@ class JunctionRoutingTests(unittest.TestCase):
         self.assertTrue(self.network.request_route_selection(train, 1))
         self.assertEqual(train._junction_route_selection["j1"]["id"], "branch-a")
 
+    def test_reverser_change_does_not_fake_a_turnout_crossing(self):
+        train = FakeTrain(220, direction=1)
+        self.network.update_train(train)
+        train.direction = -1
+        self.network.update_train(train)
+        self.assertFalse(train._junction_active_zones)
+        self.assertIsNone(train.track_change)
+
     def test_route_locks_when_leading_end_crosses_entry(self):
         train = FakeTrain(250)
         self.network.request_route_selection(train, 1)

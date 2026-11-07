@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "layout_id": "line_15_nekrasovka_full_turnback_complex_shifted",
-  "description": "Весь комплекс разворотных путей смещён на 50 м от Некрасовки; оба внутренних пути подключены к главному пути с двух сторон локальными стрелочными переводами.",
+  "description": "Два внутренних разворотных пути подключены к первому главному пути с обеих сторон; на выездной стороне Некрасовки они также подключены ко второму главному пути.",
   "reference_station": "Некрасовка",
   "station_position_m": 500,
-  "coordinate_note": "Центр Некрасовки — 500 м; край платформы со стороны подъезда — 418.5 м. Весь комплекс разворотных путей смещён на 50 м дальше от станции: внутренние пути 18.5–318.5 м, соединительные участки с одной стороны 318.5–368.5 м и с другой стороны 0–68.5 м. Локальные стрелки обеспечивают перевод между главным путём и каждым из двух дополнительных путей с обеих сторон.",
+  "coordinate_note": "Центр Некрасовки — 500 м; край платформы со стороны подъезда — 418.5 м. Внутренние пути расположены на участке 18.5–318.5 м. Соединительные участки первого главного пути находятся на координатах 318.5–368.5 м и 0–68.5 м; на выездной стороне (направление движения -1) второй главный путь также соединяется с обоими внутренними путями.",
   "track_segments": [
     {
       "id": "outer_opposing",
@@ -195,6 +195,40 @@
       "travel_direction": -1,
       "junction_id": "nekrasovka_turnback_to_main_inner_2_other_side",
       "route_order": 0
+    },
+    {
+      "id": "LOCAL-OPPOSING-MAIN-INNER-1",
+      "start_m": 368.5,
+      "end_m": 318.5,
+      "position_m": 368.5,
+      "from_offset_m": 4,
+      "to_offset_m": 2.6666667,
+      "from_label": "Второй главный путь — встречный",
+      "to_label": "Внутренний путь 1 — дальний",
+      "draw_from_offset_m": 4,
+      "draw_to_offset_m": 2.6666667,
+      "draw_start_m": 368.5,
+      "draw_end_m": 318.5,
+      "travel_direction": -1,
+      "junction_id": "nekrasovka_opposing_main_to_turnback",
+      "route_order": 0
+    },
+    {
+      "id": "LOCAL-OPPOSING-MAIN-INNER-2",
+      "start_m": 368.5,
+      "end_m": 318.5,
+      "position_m": 368.5,
+      "from_offset_m": 4,
+      "to_offset_m": 1.3333333,
+      "from_label": "Второй главный путь — встречный",
+      "to_label": "Внутренний путь 2 — ближний",
+      "draw_from_offset_m": 4,
+      "draw_to_offset_m": 1.3333333,
+      "draw_start_m": 368.5,
+      "draw_end_m": 318.5,
+      "travel_direction": -1,
+      "junction_id": "nekrasovka_opposing_main_to_turnback",
+      "route_order": 1
     }
   ],
   "origin_extension_m": 500,
@@ -210,13 +244,14 @@
     "parallel_tracks": 4,
     "inner_tracks": 2,
     "dead_ends": 2,
-    "local_switch_count": 8,
+    "local_switch_count": 11,
     "connected_inner_tracks": [
       "inner_track_1",
       "inner_track_2"
     ],
     "connected_outer_tracks": [
-      "outer_main"
+      "outer_main",
+      "outer_opposing"
     ]
   }
 }

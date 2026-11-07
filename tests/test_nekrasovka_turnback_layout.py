@@ -33,6 +33,16 @@ class NekrasovkaTurnbackLayoutTests(unittest.TestCase):
                 options = self.junctions.available_routes(routes, 68.5, -1, 120.0)
                 self.assertEqual([route["id"] for route in options], [route_id])
 
+
+    def test_exit_direction_second_main_has_two_turnback_choices(self):
+        routes = self.junctions.matching_routes(4.0, -1)
+        options = self.junctions.available_routes(routes, 368.5, -1, 120.0)
+        self.assertEqual(
+            [route["id"] for route in options],
+            ["LOCAL-OPPOSING-MAIN-INNER-1",
+             "LOCAL-OPPOSING-MAIN-INNER-2"],
+        )
+
     def test_existing_turnback_track_geometry_is_unchanged(self):
         segments = {segment["id"]: segment for segment in self.layout["track_segments"]}
         for segment_id in ("inner_track_1", "inner_track_2"):

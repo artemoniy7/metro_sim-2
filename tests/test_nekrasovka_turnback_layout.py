@@ -43,6 +43,36 @@ class NekrasovkaTurnbackLayoutTests(unittest.TestCase):
              "LOCAL-OPPOSING-MAIN-INNER-2"],
         )
 
+
+    def test_each_siding_can_return_to_main_or_switch_to_the_other_siding(self):
+        expected = (
+            (2.6666667, [
+                "LOCAL-INNER-1-MAIN",
+                "LOCAL-INNER-1-INNER-2",
+            ]),
+            (1.3333333, [
+                "LOCAL-INNER-2-MAIN",
+                "LOCAL-INNER-2-INNER-1",
+            ]),
+        )
+        for offset, expected_ids in expected:
+            with self.subTest(offset=offset):
+                routes = self.junctions.matching_routes(offset, 1)
+                options = self.junctions.available_routes(routes, 318.5, 1, 120.0)
+                self.assertEqual([route["id"] for route in options], expected_ids)
+
+    def test_crossover_options_can_be_selected_without_losing_main_exit(self):
+        for offset, crossover_id, main_id in (
+            (2.6666667, "LOCAL-INNER-1-INNER-2", "LOCAL-INNER-1-MAIN"),
+            (1.3333333, "LOCAL-INNER-2-INNER-1", "LOCAL-INNER-2-MAIN"),
+        ):
+            with self.subTest(offset=offset):
+                routes = self.junctions.matching_routes(offset, 1)
+                options = self.junctions.available_routes(routes, 318.5, 1, 120.0)
+                self.assertEqual(len(options), 2)
+                self.assertEqual(options[0]["id"], main_id)
+                self.assertEqual(options[1]["id"], crossover_id)
+
     def test_existing_turnback_track_geometry_is_unchanged(self):
         segments = {segment["id"]: segment for segment in self.layout["track_segments"]}
         for segment_id in ("inner_track_1", "inner_track_2"):

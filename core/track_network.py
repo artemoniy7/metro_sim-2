@@ -125,6 +125,9 @@ class TrackNetwork:
         return previous is not None and (previous - point) * direction < 0 <= (current - point) * direction
 
     def _current_offset(self, train):
+        active = getattr(train, "_junction_active_zones", [])
+        if active:
+            return float(active[-1]["to_offset_m"])
         override = getattr(train, "track_offset_override_m", None)
         return float(override) if override is not None else self.lane_offset_for_index(train.track_index)
 

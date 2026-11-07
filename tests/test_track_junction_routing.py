@@ -64,5 +64,32 @@ class JunctionRoutingTests(unittest.TestCase):
         self.network.update_train(train)
         self.assertFalse(train._junction_active_zones)
 
+    def test_two_trains_keep_independent_route_locks(self):
+        first = FakeTrain(250)
+        second = FakeTrain(250)
+        self.network.request_route_selection(first, 1)
+        self.network.request_route_selection(second, -1)
+        self.network.update_train(first)
+        self.network.update_train(second)
+        first.position = 70
+        second.position = 70
+        self.network.update_train(first)
+        self.network.update_train(second)
+        self.assertEqual(first._junction_active_zones[0]["route_id"], "branch-b")
+        self.assertEqual(second._junction_active_zones[0]["route_id"], "branch-a")
+
+    def test_forward_direction_crossing_uses_directional_train_ends(self):
+        route = {"id": "forward", "junction_id": "forward-j", "position_m": 100,
+                 "start_m": 100, "end_m": 150, "from_offset_m": 0,
+                 "to_offset_m": 3, "travel_direction": 1}
+        self.network.local_switches.append(route)
+        self.network.junctions = type(self.network.junctions)(self.network.local_switches)
+        train = FakeTrain(0, direction=1, length=40)
+        self.assertTrue(self.network.request_route_selection(train, 1))
+        self.network.update_train(train)
+        train.position = 100
+        self.network.update_train(train)
+        self.assertTrue(any(z["route_id"] == "forward" for z in train._junction_active_zones))
+
 if __name__ == "__main__":
     unittest.main()

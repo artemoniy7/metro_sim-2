@@ -173,14 +173,21 @@ class TrackNetwork:
         travel = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
         previous = getattr(train, "_junction_previous_edges", (None, None))
         prev_lead, prev_tail = previous
+        previous_direction = getattr(train, "_junction_previous_direction", travel)
+        direction_changed = previous_direction != travel
         active = list(getattr(train, "_junction_active_zones", []))
         selections = getattr(train, "_junction_route_selection", {})
         offset = self._current_offset(train)
         crossed = {}
-        for route in self.junctions.matching_routes(offset, travel):
-            entry = float(route.get("position_m", route.get("start_m", 0.0)))
-            if self._crossed(prev_lead, leading, entry, travel):
-                crossed.setdefault(self.junctions.cursor_key(route), []).append(route)
+        # Reversing swaps which end of the consist is leading. That change can
+        # move the calculated leading edge across a turnout without the train
+        # physically travelling over it. Only detect entry crossings while the
+        # travel direction is unchanged.
+        if not direction_changed:
+            for route in self.junctions.matching_routes(offset, travel):
+                entry = float(route.get("position_m", route.get("start_m", 0.0)))
+                if self._crossed(prev_lead, leading, entry, travel):
+                    crossed.setdefault(self.junctions.cursor_key(route), []).append(route)
         for key, group in crossed.items():
             if any(zone["junction_key"] == key for zone in active):
                 continue
@@ -207,7 +214,8 @@ class TrackNetwork:
         remaining = []
         cleared_offset = None
         for zone in active:
-            if self._crossed(prev_tail, trailing, zone["exit"], zone["direction"]):
+            if (not direction_changed
+                    and self._crossed(prev_tail, trailing, zone["exit"], zone["direction"])):
                 cleared_offset = zone["to_offset_m"]
                 train.track_offset_label = zone["to_label"]
             else:
@@ -226,3 +234,4 @@ class TrackNetwork:
             train.track_change = None
             train.track_offset_override_m = cleared_offset
         train._junction_previous_edges = (leading, trailing)
+        train._junction_previous_direction = travel

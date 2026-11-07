@@ -43,6 +43,19 @@ class NekrasovkaTurnbackLayoutTests(unittest.TestCase):
              "LOCAL-OPPOSING-MAIN-INNER-2"],
         )
 
+    def test_both_sidings_can_return_to_the_opposing_main(self):
+        for offset, route_id in (
+            (2.6666667, "LOCAL-INNER-1-OPPOSING-MAIN"),
+            (1.3333333, "LOCAL-INNER-2-OPPOSING-MAIN"),
+        ):
+            with self.subTest(offset=offset):
+                routes = self.junctions.matching_routes(offset, 1)
+                options = self.junctions.available_routes(routes, 318.5, 1, 120.0)
+                self.assertEqual(
+                    [route["id"] for route in options],
+                    [route_id.replace("OPPOSING-MAIN", "MAIN"), route_id],
+                )
+
     def test_existing_turnback_track_geometry_is_unchanged(self):
         segments = {segment["id"]: segment for segment in self.layout["track_segments"]}
         for segment_id in ("inner_track_1", "inner_track_2"):

@@ -127,46 +127,6 @@
       "from_label": "Главный путь",
       "to_label": "Главный путь",
       "travel_direction": -1
-    },
-    {
-      "id": "LOCAL-MAIN-INNER-1-OTHER-SIDE",
-      "start_m": 18.5, "end_m": 68.5, "position_m": 18.5,
-      "from_offset_m": 0, "to_offset_m": 2.6666667,
-      "from_label": "Главный путь", "to_label": "Внутренний путь 1 — дальний",
-      "draw_from_offset_m": 0, "draw_to_offset_m": 2.6666667,
-      "draw_start_m": 18.5, "draw_end_m": 68.5,
-      "travel_direction": 1,
-      "junction_id": "nekrasovka_main_to_turnback_other_side", "route_order": 0
-    },
-    {
-      "id": "LOCAL-MAIN-INNER-2-OTHER-SIDE",
-      "start_m": 18.5, "end_m": 68.5, "position_m": 18.5,
-      "from_offset_m": 0, "to_offset_m": 1.3333333,
-      "from_label": "Главный путь", "to_label": "Внутренний путь 2 — ближний",
-      "draw_from_offset_m": 0, "draw_to_offset_m": 1.3333333,
-      "draw_start_m": 18.5, "draw_end_m": 68.5,
-      "travel_direction": 1,
-      "junction_id": "nekrasovka_main_to_turnback_other_side", "route_order": 1
-    },
-    {
-      "id": "LOCAL-INNER-1-MAIN-OTHER-SIDE",
-      "start_m": 68.5, "end_m": 18.5, "position_m": 68.5,
-      "from_offset_m": 2.6666667, "to_offset_m": 0,
-      "from_label": "Внутренний путь 1 — дальний", "to_label": "Главный путь",
-      "draw_from_offset_m": 2.6666667, "draw_to_offset_m": 0,
-      "draw_start_m": 68.5, "draw_end_m": 18.5,
-      "travel_direction": -1,
-      "junction_id": "nekrasovka_inner_1_to_main_other_side", "route_order": 0
-    },
-    {
-      "id": "LOCAL-INNER-2-MAIN-OTHER-SIDE",
-      "start_m": 68.5, "end_m": 18.5, "position_m": 68.5,
-      "from_offset_m": 1.3333333, "to_offset_m": 0,
-      "from_label": "Внутренний путь 2 — ближний", "to_label": "Главный путь",
-      "draw_from_offset_m": 1.3333333, "draw_to_offset_m": 0,
-      "draw_start_m": 68.5, "draw_end_m": 18.5,
-      "travel_direction": -1,
-      "junction_id": "nekrasovka_inner_2_to_main_other_side", "route_order": 0
     }
   ],
   "origin_extension_m": 500,
@@ -182,7 +142,7 @@
     "parallel_tracks": 4,
     "inner_tracks": 2,
     "dead_ends": 2,
-    "local_switch_count": 8,
+    "local_switch_count": 4,
     "connected_inner_tracks": [
       "inner_track_1",
       "inner_track_2"

@@ -109,42 +109,6 @@ class TrackNetwork:
             return str(override_label)
         return str(self.lanes[train.track_index].get("label", "Путь"))
 
-    @staticmethod
-    def _junction_train_positions(train, direction):
-        """Return the leading and trailing outer wheel positions of the whole consist.
-
-        ``train.position`` is anchored at the index-0 cab, not at the consist
-        centre. The rendered consist extends one locomotive length in the
-        increasing-coordinate direction and the remaining consist length in
-        the decreasing-coordinate direction. Use those two physical ends so
-        junction locking follows the first and last wheelsets, including when
-        the train reverses.
-        """
-        direction = 1 if int(direction) >= 0 else -1
-        anchor = float(train.position)
-        loco_length = max(0.0, float(getattr(train, "loco_length_m", 0.0)))
-        consist_length = max(
-            loco_length, float(getattr(train, "consist_length_m", loco_length))
-        )
-        low_end = anchor - (consist_length - loco_length)
-        high_end = anchor + loco_length
-        if direction > 0:
-            return high_end, low_end
-        return low_end, high_end
-
-    @staticmethod
-    def _junction_state_occupied(state, first_end, second_end):
-        """Return whether any part of the consist overlaps the junction zone.
-
-        Occupancy is deliberately independent of travel direction: a train
-        may stop or reverse while its consist is inside the turnout.
-        """
-        zone_start = min(float(state["entry"]), float(state["exit"]))
-        zone_end = max(float(state["entry"]), float(state["exit"]))
-        consist_start = min(float(first_end), float(second_end))
-        consist_end = max(float(first_end), float(second_end))
-        return consist_end >= zone_start and consist_start <= zone_end
-
     def request_lane_change(self, train, direction, trains):
         """Track switching is intentionally disabled during the junction rewrite.
 

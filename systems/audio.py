@@ -95,7 +95,8 @@ class AudioSystem:
         self.station_announcer_enabled = False
         self.station_announcer_pending_start = False
         self.station_announcement_channel = None
-        self._last_manual_current_station = None
+        self.station_announcement_sounds = {}
+        self._last_terminal_arrival = None
         self.station_ambience_sounds = {}
         self.station_ambience_channel = None
         self._active_station_ambience = None

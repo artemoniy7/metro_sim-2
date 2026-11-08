@@ -164,9 +164,6 @@ class Game:
                     play_door_sound = getattr(self.audio, "play_door_sound", None)
                     if callable(play_door_sound):
                         play_door_sound()
-                    announce_departure = getattr(self.audio, "announce_departure", None)
-                    if callable(announce_departure):
-                        announce_departure(self.train, self.line)
             elif event.key in (pygame.K_0, pygame.K_KP0):
                 # Cab change is a separate action from the reverser. Permit it
                 # whenever the train is stopped, including while doors are open.
@@ -177,7 +174,7 @@ class Game:
             elif event.key == pygame.K_i:
                 toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)
                 if callable(toggle_announcer):
-                    toggle_announcer(self.train, self.line)
+                    toggle_announcer(self.train)
             elif event.key == pygame.K_q:
                 self.track_network.request_route_selection(self.train, -1)
             elif event.key == pygame.K_e:
@@ -226,9 +223,6 @@ class Game:
         self.line.traffic_trains = [self.train] + [bot.train for bot in self.bot_trains]
         self.train.update(dt, self.line)
         self.track_network.update_train(self.train)
-        announce_terminal_arrival = getattr(self.audio, "announce_terminal_arrival", None)
-        if callable(announce_terminal_arrival):
-            announce_terminal_arrival(self.train, self.line)
         if self.train.position >= self.end_position:
             self.train.position = self.end_position
             self.train.speed = 0.0

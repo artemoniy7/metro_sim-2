@@ -422,8 +422,6 @@ class AudioSystem:
             sounds = {}
             # A current-station clip is valid at either terminal, including station 1.
             for kind, suffix in (("current", "cur"), ("next", "next")):
-                if kind == "next" and station_number == 1:
-                    continue
                 path = station_dir / f"st_{station_number:02d}_{suffix}.mp3"
                 if not path.is_file():
                     continue

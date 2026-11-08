@@ -80,7 +80,6 @@ class Game:
         self.selected_door_side = None
         self.train.reverser_position = 0  # -1 reverse, 0 neutral, +1 forward (relative to active cab)
         self.train.active_cab = 0
-        self.camera.cab_swapped = False
         # The player's initial position is reserved; AI trains enter every
         # two minutes and are recycled to the line start after the terminus.
         self.bot_trains = []
@@ -170,7 +169,6 @@ class Game:
                 # whenever the train is stopped, including while doors are open.
                 if abs(self.train.speed) < 0.05:
                     self.train.active_cab = 1 - self.train.active_cab
-                    self.camera.cab_swapped = bool(self.train.active_cab)
                     self.camera.consist_offset_m = 0.0
                     self._sync_reverser_direction()
             elif event.key == pygame.K_i:

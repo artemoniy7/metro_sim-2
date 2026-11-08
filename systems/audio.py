@@ -96,7 +96,8 @@ class AudioSystem:
         self.station_announcer_pending_start = False
         self.station_announcement_channel = None
         self.station_announcement_sounds = {}
-        self._last_terminal_arrival = None
+        self.station_announcement_cursor = None
+        self.station_announcement_station_count = 0
         self.station_ambience_sounds = {}
         self.station_ambience_channel = None
         self._active_station_ambience = None
@@ -410,17 +411,17 @@ class AudioSystem:
         channel.set_volume(0.42 * distance_volume)
 
     def configure_station_announcements(self, station_count, line_id="line_9"):
-        """Load current clips for every station and next clips for stations 2..N."""
+        """Load station clips and reset the manual announcement sequence."""
         self.station_announcements = []
         self.station_announcement_sounds = {}
-        self._last_terminal_arrival = None
+        self.station_announcement_cursor = None
+        self.station_announcement_station_count = int(station_count)
         if pygame.mixer.get_init() is None:
             return
 
         station_dir = ASSETS_DIR / "stations" / str(line_id)
-        for station_number in range(1, int(station_count) + 1):
+        for station_number in range(1, self.station_announcement_station_count + 1):
             sounds = {}
-            # A current-station clip is valid at either terminal, including station 1.
             for kind, suffix in (("current", "cur"), ("next", "next")):
                 path = station_dir / f"st_{station_number:02d}_{suffix}.mp3"
                 if not path.is_file():
@@ -432,7 +433,7 @@ class AudioSystem:
             self.station_announcement_sounds[station_number] = sounds
 
     def play_station_announcement(self, station_number, kind="current", volume=1.0):
-        """Play the clip belonging to a specific station and announcement type."""
+        """Play one station-specific announcement clip."""
         channel = self.station_announcement_channel
         if channel is None:
             return False
@@ -447,63 +448,34 @@ class AudioSystem:
             self.start_door_ring(volume=volume)
         return True
 
-    @staticmethod
-    def _station_index_at_position(train, line):
-        """Return the 1-based station index only while the train is at its platform."""
-        position = float(train.position)
-        candidates = []
-        for index, station in enumerate(line.stations, start=1):
-            center = float(station.get("position", 0.0))
-            half_length = float(station.get("length_m", 162.0)) / 2.0
-            distance = abs(position - center)
-            if distance <= half_length + 40.0:
-                candidates.append((distance, index))
-        return min(candidates)[1] if candidates else None
-
-    @staticmethod
-    def _travel_direction(train):
-        return -1 if float(getattr(train, "direction", 1)) < 0 else 1
-
-    def announce_departure(self, train, line, volume=1.0):
-        """On door closing, announce the station ahead in the current travel direction."""
-        current_index = self._station_index_at_position(train, line)
-        if current_index is None:
-            return False
-        next_index = current_index + self._travel_direction(train)
-        if not 1 <= next_index <= len(line.stations):
-            return False
-        return self.play_station_announcement(next_index, "next", volume)
-
-    def announce_terminal_arrival(self, train, line, volume=1.0):
-        """Announce the current station once when stopped at the terminal being approached."""
-        if abs(float(getattr(train, "speed", 0.0))) > 0.05:
-            return False
-        current_index = self._station_index_at_position(train, line)
-        direction = self._travel_direction(train)
-        is_terminal = (
-            current_index == len(line.stations) and direction > 0
-        ) or (
-            current_index == 1 and direction < 0
-        )
-        if not is_terminal:
-            self._last_terminal_arrival = None
-            return False
-
-        arrival_key = (current_index, direction)
-        if arrival_key == self._last_terminal_arrival:
-            return False
-        self._last_terminal_arrival = arrival_key
-        return self.play_station_announcement(current_index, "current", volume)
-
-    def announce_next_station(self, train, line, volume=1.0):
-        """Compatibility wrapper: announce the next station along the active direction."""
-        return self.announce_departure(train, line, volume)
-
     def toggle_station_announcer(self, train=None, line=None, volume=1.0):
-        """The I key previews the next station in the active travel direction."""
-        if train is None or line is None:
+        """Advance one clip through the station list on every I-key press.
+
+        The cursor follows the selected travel direction, but never reads the
+        train position or station coordinates. Station 8 uses its current clip;
+        all other targets, including station 1 on the return trip, use next clips.
+        """
+        if train is None or self.station_announcement_station_count < 2:
             return False
-        return self.announce_departure(train, line, volume)
+
+        direction = -1 if float(getattr(train, "direction", 1)) < 0 else 1
+        if self.station_announcement_cursor is None:
+            self.station_announcement_cursor = (
+                1 if direction > 0 else self.station_announcement_station_count
+            )
+
+        target_station = self.station_announcement_cursor + direction
+        if not 1 <= target_station <= self.station_announcement_station_count:
+            return False
+
+        # Advance on the key press, even if the corresponding audio file is absent.
+        self.station_announcement_cursor = target_station
+        kind = (
+            "current"
+            if target_station == self.station_announcement_station_count and direction > 0
+            else "next"
+        )
+        return self.play_station_announcement(target_station, kind, volume)
 
     def start_door_ring(self, volume=1.0):
         """Start repeating the door-closing beep with distance attenuation."""

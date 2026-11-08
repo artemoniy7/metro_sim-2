@@ -85,12 +85,10 @@ class ReverserMotionBehaviorTests(unittest.TestCase):
 
         self.assertEqual(offset, 8.0)
 
-    def test_station_wall_uses_the_same_fixed_world_orientation(self):
-        normal_top = Renderer._station_wall_top(200, 170, 5, False)
-        second_cab_top = Renderer._station_wall_top(200, 170, 5, True)
+    def test_station_wall_keeps_its_fixed_world_orientation(self):
+        station_top = Renderer._station_wall_top(200, 170, 5)
 
-        self.assertEqual(normal_top, 25)
-        self.assertEqual(second_cab_top, normal_top)
+        self.assertEqual(station_top, 25)
 
 
 if __name__ == "__main__":

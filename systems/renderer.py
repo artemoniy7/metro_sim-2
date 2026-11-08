@@ -56,7 +56,6 @@ class Renderer:
         self.last_render_time = None
         self._tunnel_tile_cache = {}
         self._opposing_tunnel_cache = {}
-        self.cab_mirror = False
         self.main_lane_offset_m = 0.0
         self.lane_center_offset_m = 0.0
 
@@ -232,8 +231,7 @@ class Renderer:
         offset_m = lane.get("offset_m")
         if offset_m is None:
             offset_m = float(lane.get("offset_px", 0.0)) / 28.0
-        mirror = -1.0 if self.cab_mirror else 1.0
-        return (float(offset_m) - self.main_lane_offset_m) * scale * mirror
+        return (float(offset_m) - self.main_lane_offset_m) * scale
 
     def _draw_parallel_tracks(self, surface, line, camera_x, scale, rail_y_at, network):
         """Draw parallel paths with world-space spacing, behind the tunnel shell."""
@@ -461,7 +459,6 @@ class Renderer:
         scale = camera.pixels_per_metre
         base_track_y = int(height * 0.79 - camera.panel_vertical_offset)
         camera_x = camera.x
-        self.cab_mirror = bool(getattr(camera, "cab_swapped", False))
         if track_network is not None and track_network.lanes:
             offsets = [track_network.lane_offset_for_index(i)
                        for i in range(len(track_network.lanes))]
@@ -499,10 +496,9 @@ class Renderer:
                     break
 
             profile_scale = scale * (1.35 / 28.0)
-            cab_sign = -1.0 if self.cab_mirror else 1.0
             return round(base_track_y + (depth_m - 10.0) * profile_scale
                          - self._track_offset(world_x) * scale * offset_weight
-                         + cab_sign * (self.main_lane_offset_m - self.lane_center_offset_m) * scale)
+                         + (self.main_lane_offset_m - self.lane_center_offset_m) * scale)
 
         depot_length = float(getattr(line, "depot_length", 0.0))
         ground_y = int(height * 0.58 - camera.panel_vertical_offset)
@@ -547,7 +543,7 @@ class Renderer:
         # second cab is selected, its station position is one consist length
         # behind that reference; use the active cab to identify the station.
         player_station_position = float(train.position)
-        if self.cab_mirror:
+        if getattr(train, "active_cab", 0) == 1:
             player_station_position -= max(
                 0.0, float(train.consist_length_m) - float(train.loco_length_m)
             )
@@ -585,25 +581,8 @@ class Renderer:
                 elif station_index is not None:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
-                    # The station wall belongs to the neighbouring track, not
-                    # the rails directly beneath the player's train. Cab swap
-                    # mirrors lane offsets, so the wall follows the opposite
-                    # track in the newly selected cab view.
-                    wall_track_y = track_y
-                    # In the initial cab view the wall stays aligned with the
-                    # player's own rails. Only after swapping cabs should it
-                    # move to the adjacent track on the opposite side.
-                    if self.cab_mirror and track_network is not None and track_network.lanes:
-                        opposing_lane_index = next((
-                            index for index in range(len(track_network.lanes))
-                            if index != track_network.main_lane
-                        ), None)
-                        if opposing_lane_index is not None:
-                            wall_track_y += self._lane_offset_pixels(
-                                track_network.lanes[opposing_lane_index], scale
-                            )
                     station_wall_top = self._station_wall_top(
-                        wall_track_y, station_height, station_bottom_extra, self.cab_mirror
+                        track_y, station_height, station_bottom_extra, False
                     )
                     station_texture = self.station_images.get(
                         station_index, self.legacy_station_image
@@ -666,7 +645,7 @@ class Renderer:
                 elif any(abs(route_position - float(station.get("position", 0))) <= float(station.get("length_m", 155)) / 2 for station in line.stations):
                     track_y = rail_y_at(sx)
                     station_wall_top = self._station_wall_top(
-                        track_y, tunnel_height, 0, self.cab_mirror
+                        track_y, tunnel_height, 0, False
                     )
                     pygame.draw.rect(
                         surface, (142, 24, 34),
@@ -693,7 +672,6 @@ class Renderer:
                 offset_end = float(active_switch.get(
                     "draw_to_offset_m", active_switch["to_offset_m"]
                 ))
-                mirror = -1.0 if self.cab_mirror else 1.0
                 points = []
                 for step in range(33):
                     t = step / 32
@@ -702,7 +680,7 @@ class Renderer:
                     sx = round((line.path.total_length - route_position - camera_x) * scale)
                     if -12 <= sx <= width + 12:
                         offset = (offset_start + (offset_end - offset_start) * eased
-                                  - self.main_lane_offset_m) * scale * mirror
+                                  - self.main_lane_offset_m) * scale
                         sy = rail_y_at(max(0, min(width - 1, sx))) + offset
                         points.append((sx, round(sy + 4)))
                 if len(points) > 1:

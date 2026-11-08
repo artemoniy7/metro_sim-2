@@ -215,7 +215,7 @@ class Renderer:
                 + 0.18 * math.sin(world_x / 38.0 + 0.8))
 
     @staticmethod
-    def _station_wall_top(track_y, station_height, bottom_extra, mirrored):
+    def _station_wall_top(track_y, station_height, bottom_extra):
         """Keep the station image above the rails from either active cab.
 
         Switching cabs changes which station wall texture is selected, not
@@ -582,7 +582,7 @@ class Renderer:
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
                     station_wall_top = self._station_wall_top(
-                        track_y, station_height, station_bottom_extra, False
+                        track_y, station_height, station_bottom_extra
                     )
                     station_texture = self.station_images.get(
                         station_index, self.legacy_station_image
@@ -645,7 +645,7 @@ class Renderer:
                 elif any(abs(route_position - float(station.get("position", 0))) <= float(station.get("length_m", 155)) / 2 for station in line.stations):
                     track_y = rail_y_at(sx)
                     station_wall_top = self._station_wall_top(
-                        track_y, tunnel_height, 0, False
+                        track_y, tunnel_height, 0
                     )
                     pygame.draw.rect(
                         surface, (142, 24, 34),

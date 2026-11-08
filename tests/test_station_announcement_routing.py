@@ -36,6 +36,13 @@ class StationAnnouncementRoutingTests(unittest.TestCase):
 
         self.audio.play_station_announcement.assert_called_once_with(7, "next", 1.0)
 
+    def test_departure_toward_nekrasovka_announces_station_one(self):
+        train = SimpleNamespace(position=2387.7, direction=-1, speed=0.0)
+
+        self.assertTrue(self.audio.announce_departure(train, self.line))
+
+        self.audio.play_station_announcement.assert_called_once_with(1, "next", 1.0)
+
     def test_terminal_arrival_announces_current_station_only_once(self):
         train = SimpleNamespace(position=14365.04, direction=1, speed=0.0)
 

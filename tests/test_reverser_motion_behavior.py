@@ -53,10 +53,11 @@ class ReverserMotionBehaviorTests(unittest.TestCase):
         self.assertFalse(audio._chopper_was_active)
         self.assertFalse(audio._high_component_was_active)
 
-    def test_reverse_camera_keeps_rear_cab_at_focus_without_changing_position(self):
+    def test_camera_follows_second_cab_without_mirroring_the_world(self):
         train = SimpleNamespace(
             position=500.0,
             direction=-1,
+            active_cab=1,
             loco_length_m=20.0,
             consist_length_m=153.0,
         )
@@ -65,23 +66,31 @@ class ReverserMotionBehaviorTests(unittest.TestCase):
 
         camera.follow(train, route_length=1000.0)
 
-        reverse_cab_world_x = (
+        second_cab_world_x = (
             1000.0 - train.position - train.loco_length_m
             + train.consist_length_m - train.loco_length_m
         )
         self.assertAlmostEqual(
             camera.x,
-            reverse_cab_world_x - camera.focus_screen_x / camera.pixels_per_metre,
+            second_cab_world_x - camera.focus_screen_x / camera.pixels_per_metre,
         )
         self.assertEqual(train.position, 500.0)
+        self.assertFalse(hasattr(camera, "cab_swapped"))
 
-    def test_station_wall_moves_to_opposite_side_with_cab(self):
-        normal_top = Renderer._station_wall_top(200, 170, 5, mirrored=False)
-        mirrored_top = Renderer._station_wall_top(200, 170, 5, mirrored=True)
+    def test_parallel_track_offset_keeps_its_world_side_after_cab_change(self):
+        renderer = Renderer.__new__(Renderer)
+        renderer.main_lane_offset_m = 0.0
 
-        self.assertLess(normal_top, 200)
-        self.assertGreater(mirrored_top, normal_top)
-        self.assertEqual(mirrored_top, 195)
+        offset = renderer._lane_offset_pixels({"offset_m": 4.0}, scale=2.0)
+
+        self.assertEqual(offset, 8.0)
+
+    def test_station_wall_uses_the_same_fixed_world_orientation(self):
+        normal_top = Renderer._station_wall_top(200, 170, 5, False)
+        second_cab_top = Renderer._station_wall_top(200, 170, 5, True)
+
+        self.assertEqual(normal_top, 25)
+        self.assertEqual(second_cab_top, normal_top)
 
 
 if __name__ == "__main__":

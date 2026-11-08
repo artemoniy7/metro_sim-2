@@ -47,7 +47,7 @@ class StationAnnouncementSequenceTests(unittest.TestCase):
             self.audio.toggle_station_announcer(train)
 
         train.direction = -1
-        for _ in range(7):
+        for _ in range(6):
             self.audio.toggle_station_announcer(train)
 
         self.audio.play_station_announcement.reset_mock()

@@ -603,116 +603,39 @@ class AudioSystem:
                 channel.play(end_sound)
 
     def _update_brakes(self, train, dt):
-        """Play brake sounds only while the train is actually applying the brakes."""
+        """Keep only the pneumatic brake-release sound at the end of a stop."""
         speed_kmh = abs(train.speed) * 3.6
-        # Brake audio follows the driver command, not brake_applied: the train's
-        # physical brakes intentionally react after a delay, but the sound should
-        # begin as soon as the driver selects a brake notch.
         braking = bool(
             getattr(train, "emergency_brake_active", False)
             or getattr(train, "controller_notch", 0) < 0
         )
-        brake_notch = 4 if train.emergency_brake_active else abs(min(0, train.controller_notch))
 
-        if not braking:
-            # Brake-release air sound is only used when releasing brakes at a stop.
-            # If the train was already moving, simply stop the brake squeal.
-            if self._was_braking:
-                for channel in (self.brake_channel, self.brake_channel_alt):
-                    if channel is not None and channel.get_busy():
-                        channel.fadeout(250)
-                if (speed_kmh < 0.2
-                        and self.brake_release_sound is not None
-                        and self.brake_release_channel is not None):
-                    self.brake_release_channel.stop()
-                    self.brake_release_channel.set_volume(0.85)
-                    self.brake_release_channel.play(self.brake_release_sound)
-            self._brake_stop_fade_done = False
-            self._was_braking = False
-            self._played_near_stop = False
-            self._last_brake_notch = 0
-            self._brake_repeat_timer = 0.0
-            self._brake_target_volume = 0.0
+        if braking:
+            # All friction/rail squeal clips are intentionally disabled.
+            for channel in (self.brake_channel, self.brake_channel_alt):
+                if channel is not None and channel.get_busy():
+                    channel.stop()
+            self._was_braking = True
             return
 
-        sound_key = {1: "gentle", 2: "medium", 3: "strong"}.get(brake_notch, "strong")
-        target_volume = self.BRAKE_VOLUME * (0.65 + 0.12 * min(brake_notch, 3))
-        self._brake_target_volume = target_volume
+        if self._was_braking:
+            # 013_rd_release_low.wav is the pneumatic release at standstill.
+            if (speed_kmh < 0.2
+                    and self.brake_release_sound is not None
+                    and self.brake_release_channel is not None):
+                self.brake_release_channel.stop()
+                self.brake_release_channel.set_volume(0.85)
+                self.brake_release_channel.play(self.brake_release_sound)
 
-        if not self._was_braking or brake_notch != self._last_brake_notch:
-            self._brake_stop_fade_done = False
-            sound = self.brake_sounds.get(sound_key)
-            if sound is not None and speed_kmh > self.BRAKE_SOUND_MIN_SPEED_KMH:
-                # Alternate channels so a new brake notch can blend in smoothly.
-                channels = (self.brake_channel, self.brake_channel_alt)
-                next_index = 1 - self._active_brake_channel
-                next_channel = channels[next_index]
-                current_channel = channels[self._active_brake_channel]
-                next_channel.stop()
-                next_channel.set_volume(target_volume)
-                # Light and medium brake recordings are looped continuously.
-                # Replaying them as short one-shots caused an audible silence
-                # between each repetition.
-                next_channel.play(
-                    sound,
-                    loops=-1 if brake_notch in (1, 2) else 0,
-                    fade_ms=350,
-                )
-                if current_channel.get_busy():
-                    current_channel.fadeout(350)
-                self._active_brake_channel = next_index
-            self._brake_repeat_timer = 0.0
-            self._last_brake_notch = brake_notch
-        elif brake_notch in (1, 2):
-            # Recover if the mixer ended a loop unexpectedly, without adding
-            # the pause/restart cadence used by the strong-brake one-shots.
-            channels = (self.brake_channel, self.brake_channel_alt)
-            channel = channels[self._active_brake_channel]
-            if speed_kmh > self.BRAKE_NEAR_STOP_SPEED_KMH and not channel.get_busy():
-                sound = self.brake_sounds.get(sound_key)
-                if sound is not None:
-                    channel.set_volume(target_volume)
-                    channel.play(sound, loops=-1)
-        else:
-            self._brake_repeat_timer += max(0.0, dt)
-            if self._brake_repeat_timer >= self.BRAKE_REPEAT_INTERVAL_S:
-                sound = self.brake_sounds.get(sound_key)
-                if sound is not None and speed_kmh > self.BRAKE_NEAR_STOP_SPEED_KMH:
-                    channels = (self.brake_channel, self.brake_channel_alt)
-                    channel = channels[self._active_brake_channel]
-                    channel.set_volume(target_volume)
-                    channel.play(sound)
-                self._brake_repeat_timer = 0.0
-
-        self._was_braking = True
-
-        # Silence brake squeal once the train is effectively stopped.
-        if speed_kmh <= self.BRAKE_SOUND_MIN_SPEED_KMH:
-            if not self._brake_stop_fade_done:
-                for channel in (self.brake_channel, self.brake_channel_alt):
-                    if channel is not None and channel.get_busy():
-                        channel.fadeout(250)
-                self._brake_stop_fade_done = True
-            self._played_near_stop = True
-            return
-
-        # Play the longer squeal near the stop, but only once per braking event.
-        if (not self._played_near_stop
-                and self.BRAKE_SOUND_MIN_SPEED_KMH < speed_kmh <= self.BRAKE_NEAR_STOP_SPEED_KMH):
-            key = random.choice(("near_stop_a", "near_stop_b"))
-            sound = self.brake_sounds.get(key)
-            if sound is not None:
-                channels = (self.brake_channel, self.brake_channel_alt)
-                next_index = 1 - self._active_brake_channel
-                next_channel = channels[next_index]
-                current_channel = channels[self._active_brake_channel]
-                next_channel.stop()
-                next_channel.set_volume(min(1.0, self.BRAKE_VOLUME * 1.45))
-                next_channel.play(sound, fade_ms=350)
-                if current_channel.get_busy():
-                    current_channel.fadeout(350)
-                self._active_brake_channel = next_index
-            self._played_near_stop = True
+        for channel in (self.brake_channel, self.brake_channel_alt):
+            if channel is not None and channel.get_busy():
+                channel.stop()
+        self._was_braking = False
+        self._brake_stop_fade_done = False
+        self._played_near_stop = False
+        self._last_brake_notch = 0
+        self._brake_repeat_timer = 0.0
+        self._brake_target_volume = 0.0
 
     def _play(self, group, hit, speed, distance_m):
         sound = self.sounds.get((group, hit))
@@ -947,51 +870,10 @@ class AudioSystem:
         self._high_component_was_active = False
 
     def _update_wheel_squeal(self, train, dt):
-        """Mix wheel squeal during braking, attenuating it at high speed."""
-        channel = self.wheel_squeal_channel
-        if (not self.wheel_squeal_supported or channel is None
-                or self.wheel_squeal_sound is None):
-            return
-
-        speed_kmh = abs(train.speed) * 3.6
-        emergency = bool(getattr(train, "emergency_brake_active", False))
-        brake_notch = 4 if emergency else abs(min(
-            0, getattr(train, "controller_notch", 0)
-        ))
-        braking = emergency or brake_notch > 0
-
-        # Squeal is most prominent at moderate speed and fades out by 70 km/h.
-        speed_rise = self._fade_in(
-            speed_kmh,
-            self.WHEEL_SQUEAL_START_SPEED_KMH,
-            self.WHEEL_SQUEAL_FULL_SPEED_KMH,
-        )
-        high_speed_fade = 1.0 - self._fade_in(
-            speed_kmh,
-            self.WHEEL_SQUEAL_FADE_START_SPEED_KMH,
-            self.WHEEL_SQUEAL_STOP_SPEED_KMH,
-        )
-        speed_weight = speed_rise * high_speed_fade if braking else 0.0
-        brake_weight = max(0.0, min(1.0, (brake_notch - 1) / 3.0))
-        brake_volume = (
-            self.WHEEL_SQUEAL_BASE_VOLUME
-            + (self.WHEEL_SQUEAL_MAX_VOLUME - self.WHEEL_SQUEAL_BASE_VOLUME)
-            * brake_weight
-        ) if braking else 0.0
-        target_volume = brake_volume * speed_weight
-
-        smoothing = 1.0 - math.exp(-max(0.0, dt) / 0.35)
-        self._wheel_squeal_volume += (
-            target_volume - self._wheel_squeal_volume
-        ) * smoothing
-        channel.set_volume(self._wheel_squeal_volume)
-
-        if target_volume > 0.002 and not channel.get_busy():
-            channel.play(self.wheel_squeal_sound, loops=-1)
-        elif self._wheel_squeal_volume < 0.001:
-            if channel.get_busy():
-                channel.stop()
-            self._wheel_squeal_volume = 0.0
+        """Wheel squeal is disabled; pneumatic brake release remains separate."""
+        self._wheel_squeal_volume = 0.0
+        if self.wheel_squeal_channel is not None:
+            self.wheel_squeal_channel.stop()
 
     def _update_motion_sounds(self, train, dt, in_tunnel=False):
         """Neutral reverser means no rolling, traction, or tunnel-running audio."""

@@ -15,6 +15,7 @@ class Train:
     ED_TO_PNEUMATIC_SPEED_KMH = 7.0
     PRESSURE_DISPLAY_UNIT = "кгс/см²"
     PARKING_BRAKE_RELEASE_PRESSURE = 6.3
+    MAX_COMBINED_SERVICE_DECELERATION = None
 
     def __init__(self, data=None):
         data = data or {}
@@ -229,6 +230,11 @@ class Train:
         else:
             deceleration = ed_deceleration + friction_deceleration
         deceleration = max(deceleration, parking_deceleration)
+        # Some model adapters publish a maximum combined brake effort. This
+        # prevents ED + pneumatic blending from exceeding that calibrated cap.
+        combined_brake_limit = self.MAX_COMBINED_SERVICE_DECELERATION
+        if combined_brake_limit is not None:
+            deceleration = min(deceleration, float(combined_brake_limit))
         self.brake_deceleration = deceleration
 
         if deceleration > 0.0:

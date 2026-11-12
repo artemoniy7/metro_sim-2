@@ -61,7 +61,7 @@ class InputController:
         })
 
     def matches(self, event, action):
-        if event.type != pygame.KEYDOWN:
+        if event.type not in (pygame.KEYDOWN, pygame.KEYUP):
             return False
         binding = self.keybinds.get(action, self.DEFAULT_KEYBINDS[action]).lower()
         parts = binding.split("+")

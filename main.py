@@ -45,11 +45,13 @@ def main():
                     running = False
                 elif action == "start":
                     game = create_selected_game(menu)
+                    game.controls.set_keybinds(pause_menu.keybinds)
+                    pause_menu.set_audio(game.audio)
                     scene = "game"
                     paused = False
             elif game is not None:
                 if paused:
-                    action = pause_menu.handle_event(event)
+                    action = pause_menu.handle_event(event, game.audio)
                     if action == "resume":
                         paused = False
                         pygame.mixer.unpause()
@@ -59,14 +61,6 @@ def main():
                         scene = "menu"
                         menu.page = "home"
                         game = None
-                    elif action == "toggle_fullscreen":
-                        if pause_menu.fullscreen:
-                            desktop = pygame.display.Info()
-                            screen = pygame.display.set_mode(
-                                (desktop.current_w, desktop.current_h), pygame.NOFRAME
-                            )
-                        else:
-                            screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     paused = True
                     pause_menu.page = "pause"

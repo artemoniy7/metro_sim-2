@@ -12,9 +12,10 @@ class Train81777(Train):
     PNEUMATIC_SYSTEM_CLASS = Moscow2020Pneumatics
     ELECTRODYNAMIC_BRAKE_CLASS = Moscow2020ElectrodynamicBrake
     TRACTION_SYSTEM_CLASS = Moscow2020Traction
-    # ED effort is progressively handed over to the pneumatic brake near stop.
-    # The exact crossover speed is a simulation calibration, not a factory value.
-    ED_TO_PNEUMATIC_SPEED_KMH = 10.0
+    # Start building pneumatic replacement earlier so service braking stays
+    # firm as electrodynamic effort fades near standstill. This crossover is
+    # a simulation calibration, not a published factory threshold.
+    ED_TO_PNEUMATIC_SPEED_KMH = 18.0
     MAX_COMBINED_SERVICE_DECELERATION = 1.1
     COMBINED_BRAKE_BLEND_MODE = "max"
     PRESSURE_DISPLAY_UNIT = "усл. ед."

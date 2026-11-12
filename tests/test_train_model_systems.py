@@ -143,17 +143,32 @@ class TrainModelRegistryTests(unittest.TestCase):
             train.traction_system.acceleration(4, 0.0, notches), 1.3
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 30.0 / 3.6, notches), 1.3
+            train.traction_system.acceleration(4, 10.0 / 3.6, notches), 1.196
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 60.0 / 3.6, notches), 0.975
+            train.traction_system.acceleration(4, 30.0 / 3.6, notches), 0.936
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 90.0 / 3.6, notches), 0.455
+            train.traction_system.acceleration(4, 60.0 / 3.6, notches), 0.624
         )
-        self.assertLess(
-            train.traction_system.acceleration(4, 90.0 / 3.6, notches),
+        self.assertAlmostEqual(
+            train.traction_system.acceleration(4, 90.0 / 3.6, notches), 0.325
+        )
+        self.assertGreater(
             train.traction_system.acceleration(4, 0.0, notches),
+            train.traction_system.acceleration(4, 10.0 / 3.6, notches),
+        )
+        self.assertGreater(
+            train.traction_system.acceleration(4, 10.0 / 3.6, notches),
+            train.traction_system.acceleration(4, 30.0 / 3.6, notches),
+        )
+        self.assertGreater(
+            train.traction_system.acceleration(4, 30.0 / 3.6, notches),
+            train.traction_system.acceleration(4, 60.0 / 3.6, notches),
+        )
+        self.assertGreater(
+            train.traction_system.acceleration(4, 60.0 / 3.6, notches),
+            train.traction_system.acceleration(4, 90.0 / 3.6, notches),
         )
 
     def test_81_777_uses_provided_wagon_length_and_calibrated_physics(self):

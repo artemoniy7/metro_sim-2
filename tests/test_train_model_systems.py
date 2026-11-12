@@ -12,7 +12,7 @@ from core.train_models.model_81_777 import Train81777
 from core.train_models.oka import profile as oka_profile
 from core.train_models.nomernoy import profile as nomernoy_profile
 from core.train_models.rusich import profile as rusich_profile
-from core.train_models.yauza import profile as yauza_profile
+from core.train_models.moscow_2020 import profile as moscow_2020_profile
 from core.train_models.shared.provisional_equipment import ProvisionalPneumaticSystem
 
 
@@ -84,7 +84,7 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertTrue(oka_profile.COMPRESSOR_SUPPORTED)
         self.assertFalse(nomernoy_profile.COMPRESSOR_SUPPORTED)
         self.assertFalse(rusich_profile.COMPRESSOR_SUPPORTED)
-        self.assertEqual(yauza_profile.ASSET_DIRECTORY, "81-777")
+        self.assertEqual(moscow_2020_profile.ASSET_DIRECTORY, "81-777")
         self.assertEqual(yauza_profile.LOCO_SOURCE_SIZE, (2130, 444))
         self.assertEqual(yauza_profile.CAR_SOURCE_SIZE, (2050, 431))
         self.assertTrue(yauza_profile.DOOR_ANIMATION_SUPPORTED)

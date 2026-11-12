@@ -33,9 +33,10 @@ class AudioSystem:
     BRAKE_SOUND_MIN_SPEED_KMH = 2.0
     BRAKE_REPEAT_INTERVAL_S = 1.25
     BRAKE_VOLUME_SMOOTHING = 2.5
-    WHEEL_SQUEAL_START_SPEED_KMH = 10.0
-    WHEEL_SQUEAL_FULL_SPEED_KMH = 15.0
-    WHEEL_SQUEAL_VOLUME = 0.1
+    WHEEL_SQUEAL_START_SPEED_KMH = 15.0
+    WHEEL_SQUEAL_FULL_SPEED_KMH = 20.0
+    WHEEL_SQUEAL_BASE_VOLUME = 0.1
+    WHEEL_SQUEAL_MAX_VOLUME = 0.22
 
     # Source-image x coordinates for the two points in each wheel pair.
     LOCO_PAIRS = ((345, 621), (1763, 2003))
@@ -248,8 +249,8 @@ class AudioSystem:
                 except (pygame.error, OSError):
                     self.brake_sounds[key] = None
 
-            # Reuse the short low brake-squeal recording as a very quiet,
-            # continuous wheel/rail bed; it has its own channel and level.
+            # Reuse the low brake-squeal recording for a separate wheel-squeal
+            # layer, mixed only while the train is braking.
             self.wheel_squeal_sound = self.brake_sounds.get("gentle")
 
             sound_dir = motion_dir / "joint"
@@ -944,20 +945,34 @@ class AudioSystem:
         self._high_component_was_active = False
 
     def _update_wheel_squeal(self, train, dt):
-        """Fade in a quiet wheel/rail squeal from 10 to 15 km/h on 81-777."""
+        """Mix wheel squeal only during braking, fading in above 15 km/h."""
         channel = self.wheel_squeal_channel
         if (not self.wheel_squeal_supported or channel is None
                 or self.wheel_squeal_sound is None):
             return
 
         speed_kmh = abs(train.speed) * 3.6
-        weight = self._fade_in(
+        emergency = bool(getattr(train, "emergency_brake_active", False))
+        brake_notch = 4 if emergency else abs(min(
+            0, getattr(train, "controller_notch", 0)
+        ))
+        braking = emergency or brake_notch > 0
+
+        # Without a brake command there must be no wheel squeal.
+        speed_weight = self._fade_in(
             speed_kmh,
             self.WHEEL_SQUEAL_START_SPEED_KMH,
             self.WHEEL_SQUEAL_FULL_SPEED_KMH,
-        )
-        target_volume = self.WHEEL_SQUEAL_VOLUME * weight
-        smoothing = 1.0 - math.exp(-max(0.0, dt) / 0.45)
+        ) if braking else 0.0
+        brake_weight = max(0.0, min(1.0, (brake_notch - 1) / 3.0))
+        brake_volume = (
+            self.WHEEL_SQUEAL_BASE_VOLUME
+            + (self.WHEEL_SQUEAL_MAX_VOLUME - self.WHEEL_SQUEAL_BASE_VOLUME)
+            * brake_weight
+        ) if braking else 0.0
+        target_volume = brake_volume * speed_weight
+
+        smoothing = 1.0 - math.exp(-max(0.0, dt) / 0.35)
         self._wheel_squeal_volume += (
             target_volume - self._wheel_squeal_volume
         ) * smoothing
@@ -975,7 +990,6 @@ class AudioSystem:
         if getattr(train, "reverser_position", None) == 0:
             self._stop_motion_sounds()
             return
-        self._update_wheel_squeal(train, dt)
         self._update_tunnel_curve(train, dt, in_tunnel)
         self._update_rolling(abs(train.speed))
         self._update_engine(train, dt)
@@ -986,6 +1000,7 @@ class AudioSystem:
         if self.compressor_supported:
             self._update_compressor(train)
         self._update_brakes(train, dt)
+        self._update_wheel_squeal(train, dt)
         if not self.sounds:
             return
 

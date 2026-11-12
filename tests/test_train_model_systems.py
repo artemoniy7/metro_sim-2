@@ -87,8 +87,14 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertEqual(yauza_profile.ASSET_DIRECTORY, "81-777")
         self.assertEqual(yauza_profile.LOCO_SOURCE_SIZE, (2130, 444))
         self.assertEqual(yauza_profile.CAR_SOURCE_SIZE, (2050, 431))
-        self.assertFalse(yauza_profile.DOOR_ANIMATION_SUPPORTED)
-        self.assertFalse(yauza_profile.COMPRESSOR_SUPPORTED)
+        self.assertTrue(yauza_profile.DOOR_ANIMATION_SUPPORTED)
+        self.assertEqual(yauza_profile.AUDIO_DIRECTORY, "81-777")
+        self.assertEqual(yauza_profile.MOTION_AUDIO_DIRECTORY, "81-760")
+        self.assertEqual(yauza_profile.LOCO_PAIRS, ((359, 646), (1833, 2082)))
+        self.assertEqual(yauza_profile.CAR_PAIRS, ((193, 464), (1763, 2018)))
+        self.assertIsNotNone(yauza_profile.JOINT_PATTERN)
+        self.assertIsNotNone(yauza_profile.STATION_JOINT_PATTERN)
+        self.assertTrue(yauza_profile.COMPRESSOR_SUPPORTED)
 
     def test_provisional_pneumatics_apply_and_release_service_brake(self):
         system = ProvisionalPneumaticSystem()

@@ -120,6 +120,9 @@ class AudioSystem:
                 pygame.mixer.init()
 
             rolling_dir = ASSETS_DIR / "sounds" / "train" / profile.AUDIO_DIRECTORY
+            motion_dir = ASSETS_DIR / "sounds" / "train" / getattr(
+                profile, "MOTION_AUDIO_DIRECTORY", profile.AUDIO_DIRECTORY
+            )
             try:
                 self.door_sound = pygame.mixer.Sound(str(rolling_dir / "doors" / "door_close.wav"))
             except (pygame.error, OSError):
@@ -132,13 +135,13 @@ class AudioSystem:
                 self.door_ring_sound = None
             for filename in ("rolling_low.wav", "rolling_50.wav", "rolling_70.wav"):
                 try:
-                    self.rolling_sounds.append(pygame.mixer.Sound(str(rolling_dir / filename)))
+                    self.rolling_sounds.append(pygame.mixer.Sound(str(motion_dir / filename)))
                 except (pygame.error, OSError):
                     self.rolling_sounds.append(None)
 
             # Rusich and async play together at low speed. Async fades out
             # between 25 and 40 km/h; the next motor layer comes in at higher speed.
-            engine_dir = rolling_dir / "engine"
+            engine_dir = motion_dir / "engine"
             self.engine_sounds = [
                 self._load_engine_sound(engine_dir, "engine_rusich.wav", (72.0, 2.4, 0.35)),
                 self._load_engine_sound(engine_dir, "async.wav", (95.0, 3.1, 0.65)),
@@ -196,7 +199,7 @@ class AudioSystem:
 
             # Short squeals are used when braking starts; the longer recordings
             # are reserved for the final few km/h before the train stops.
-            brake_dir = rolling_dir / "brake"
+            brake_dir = motion_dir / "brake"
             try:
                 self.brake_release_sound = pygame.mixer.Sound(
                     str(brake_dir / "013_rd_release_low.wav")
@@ -236,7 +239,7 @@ class AudioSystem:
                 except (pygame.error, OSError):
                     self.brake_sounds[key] = None
 
-            sound_dir = rolling_dir / "joint"
+            sound_dir = motion_dir / "joint"
             # New exterior recordings encode the recording speed in the filename:
             # joint_stl760_<group>_<hit>_<speed>.wav
             pattern = re.compile(profile.JOINT_PATTERN or r"(?!)", re.IGNORECASE)

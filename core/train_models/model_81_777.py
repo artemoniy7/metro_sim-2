@@ -16,5 +16,6 @@ class Train81777(Train):
     # The exact crossover speed is a simulation calibration, not a factory value.
     ED_TO_PNEUMATIC_SPEED_KMH = 10.0
     MAX_COMBINED_SERVICE_DECELERATION = 1.1
+    COMBINED_BRAKE_BLEND_MODE = "max"
     PRESSURE_DISPLAY_UNIT = "усл. ед."
     PARKING_BRAKE_RELEASE_PRESSURE = 0.75

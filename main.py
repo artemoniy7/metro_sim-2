@@ -55,7 +55,7 @@ def main():
                         pygame.mixer.unpause()
                     elif action == "main_menu":
                         paused = False
-                        pygame.mixer.unpause()
+                        pygame.mixer.stop()
                         scene = "menu"
                         menu.page = "home"
                         game = None

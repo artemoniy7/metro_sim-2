@@ -75,12 +75,15 @@ class Moscow2020Traction(ConfiguredTraction):
     """
 
     # (speed in km/h, fraction of the configured notch effort).
-    # The curve holds full effort at low speed, then tapers toward top speed.
+    # Full launch effort is available from standstill; traction then tapers
+    # progressively from low speed instead of staying flat up to 30 km/h.
+    # Intermediate factors are simulation tuning, not factory measurements.
     SPEED_EFFORT_CURVE = (
         (0.0, 1.0),
-        (30.0, 1.0),
-        (60.0, 0.75),
-        (90.0, 0.35),
+        (10.0, 0.92),
+        (30.0, 0.72),
+        (60.0, 0.48),
+        (90.0, 0.25),
     )
 
     @classmethod

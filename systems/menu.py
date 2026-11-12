@@ -48,7 +48,6 @@ class MainMenu:
         self.difficulty = "Обычный"
         self.settings_open = False
         self.volume = 70
-        self.fullscreen = True
         font_dir = ASSETS / "ui" / "fonts"
         self.title = self._font(font_dir / "IBMPlexSans-Bold.ttf", 48, True)
         self.heading = self._font(font_dir / "IBMPlexSans-SemiBold.ttf", 27, True)
@@ -182,8 +181,6 @@ class MainMenu:
                 self.volume = max(0, self.volume - 10)
             elif key == "volume_up":
                 self.volume = min(100, self.volume + 10)
-            elif key == "fullscreen":
-                self.fullscreen = not self.fullscreen
             break
         return None
 
@@ -338,6 +335,4 @@ class MainMenu:
         self._text(surface, f'Громкость: {self.volume}%', self.body, self.MUTED, (panel.x+28, panel.y+92))
         self._button(surface, "volume_down", "−", pygame.Rect(panel.x+28, panel.y+130, 54, 42))
         self._button(surface, "volume_up", "+", pygame.Rect(panel.x+94, panel.y+130, 54, 42))
-        self._button(surface, "fullscreen", "Полный экран: " + ("Да" if self.fullscreen else "Нет"),
-                     pygame.Rect(panel.x+28, panel.y+193, panel.width-56, 44))
         self._button(surface, "back", "Назад", pygame.Rect(panel.x+28, panel.bottom-66, panel.width-56, 42), True)

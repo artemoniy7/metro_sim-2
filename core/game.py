@@ -144,44 +144,38 @@ class Game:
                 play_door_sound()
 
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            pygame.event.post(pygame.event.Event(pygame.QUIT))
-        elif event.type == pygame.KEYDOWN:
-            mods = getattr(event, "mod", pygame.key.get_mods())
-            shift = bool(mods & pygame.KMOD_SHIFT)
-            if shift and event.key == pygame.K_a:
+        if event.type == pygame.KEYDOWN:
+            if self.controls.matches(event, "select_left_door"):
                 self.selected_door_side = "left"
-            elif shift and event.key == pygame.K_d:
+            elif self.controls.matches(event, "select_right_door"):
                 self.selected_door_side = "right"
-            elif event.key == pygame.K_a and not shift:
+            elif self.controls.matches(event, "open_left_door"):
                 self._open_selected_doors("left")
-            elif event.key == pygame.K_d and not shift:
+            elif self.controls.matches(event, "open_right_door"):
                 self._open_selected_doors("right")
-            elif event.key == pygame.K_v:
+            elif self.controls.matches(event, "close_doors"):
                 if self.doors_open:
                     self.doors_open = False
                     self.train.doors_open = False
                     play_door_sound = getattr(self.audio, "play_door_sound", None)
                     if callable(play_door_sound):
                         play_door_sound()
-            elif event.key in (pygame.K_0, pygame.K_KP0):
-                # Cab change is a separate action from the reverser. Permit it
-                # whenever the train is stopped, including while doors are open.
+            elif self.controls.matches(event, "change_cab"):
                 if abs(self.train.speed) < 0.05:
                     self.train.active_cab = 1 - self.train.active_cab
                     self.camera.consist_offset_m = 0.0
                     self._sync_reverser_direction()
-            elif event.key == pygame.K_i:
+            elif self.controls.matches(event, "station_announcer"):
                 toggle_announcer = getattr(self.audio, "toggle_station_announcer", None)
                 if callable(toggle_announcer):
                     toggle_announcer(self.train)
-            elif event.key == pygame.K_q:
+            elif self.controls.matches(event, "route_left"):
                 self.track_network.request_route_selection(self.train, -1)
-            elif event.key == pygame.K_e:
+            elif self.controls.matches(event, "route_right"):
                 self.track_network.request_route_selection(self.train, 1)
-            elif event.key == pygame.K_LEFT:
+            elif self.controls.matches(event, "camera_left"):
                 self.camera.pan(-1, self.train)
-            elif event.key == pygame.K_RIGHT:
+            elif self.controls.matches(event, "camera_right"):
                 self.camera.pan(1, self.train)
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.zoom_by(event.y * 0.15)

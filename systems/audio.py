@@ -124,6 +124,8 @@ class AudioSystem:
         self.compressor_channel = None
         self._compressor_active = False
         self._compressor_starting = False
+        self.volume_groups = {"master": 1.0, "train": 1.0, "environment": 1.0, "announcements": 1.0}
+        self._channel_base_volumes = {}
 
         try:
             if pygame.mixer.get_init() is None:
@@ -308,6 +310,33 @@ class AudioSystem:
             # Sound is optional; the simulation should still start without it.
             self.sounds = {}
 
+    def _channel_volume_group(self, channel):
+        channel_id = channel.get_id()
+        if channel_id == 8:
+            return "announcements"
+        if 13 <= channel_id <= 32:
+            return "environment"
+        return "train"
+
+    def _set_channel_volume(self, channel, volume):
+        if channel is None:
+            return
+        channel_id = channel.get_id()
+        self._channel_base_volumes[channel_id] = float(volume)
+        group = self._channel_volume_group(channel)
+        effective = float(volume) * self.volume_groups["master"] * self.volume_groups[group]
+        channel.set_volume(max(0.0, min(1.0, effective)))
+
+    def set_volume_group(self, group, value):
+        if group not in self.volume_groups:
+            return
+        self.volume_groups[group] = max(0.0, min(1.0, float(value)))
+        for channel_id, base_volume in self._channel_base_volumes.items():
+            channel = pygame.mixer.Channel(channel_id)
+            channel_group = self._channel_volume_group(channel)
+            effective = base_volume * self.volume_groups["master"] * self.volume_groups[channel_group]
+            channel.set_volume(max(0.0, min(1.0, effective)))
+
     def configure_station_joint_sounds(self, stations):
         """Set platform boundaries where station-specific rail-joint recordings apply."""
         self._station_platforms = [
@@ -339,7 +368,7 @@ class AudioSystem:
         )
         if channel is None:
             return
-        channel.set_volume(max(0.0, min(0.65, speed_volume * distance_volume)))
+        self._set_channel_volume(channel, max(0.0, min(0.65, speed_volume * distance_volume)))
         channel.play(sound)
 
     @staticmethod
@@ -383,7 +412,7 @@ class AudioSystem:
         """Play a door sound with distance-based volume attenuation."""
         if self.door_sound is not None and self.door_channel is not None and volume > 0.01:
             self.door_channel.stop()
-            self.door_channel.set_volume(max(0.0, min(1.0, volume)))
+            self._set_channel_volume(self.door_channel, max(0.0, min(1.0, volume)))
             self.door_channel.play(self.door_sound)
 
     def update_station_ambience(self, station_simulation, train):
@@ -427,7 +456,7 @@ class AudioSystem:
             channel.stop()
             channel.play(sound, loops=-1)
             self._active_station_ambience = crowd
-        channel.set_volume(0.42 * distance_volume)
+        self._set_channel_volume(channel, 0.42 * distance_volume)
 
     def configure_station_announcements(self, station_count, line_id="line_9"):
         """Load station clips and reset the manual announcement sequence."""
@@ -461,7 +490,7 @@ class AudioSystem:
         if sound is None or volume <= 0.01:
             return False
         channel.stop()
-        channel.set_volume(volume)
+        self._set_channel_volume(channel, volume)
         channel.play(sound)
         if kind == "next":
             self.start_door_ring(volume=volume)
@@ -508,7 +537,7 @@ class AudioSystem:
         self._door_ring_timer = 0.0
         self._door_ring_beeping = True
         self.door_ring_channel.stop()
-        self.door_ring_channel.set_volume(self._door_ring_volume)
+        self._set_channel_volume(self.door_ring_channel, self._door_ring_volume)
         self.door_ring_channel.play(self.door_ring_sound)
 
     def stop_door_ring(self):
@@ -530,7 +559,7 @@ class AudioSystem:
         if self.door_ring_channel is None:
             return
         if self._door_ring_beeping:
-            self.door_ring_channel.set_volume(self._door_ring_volume)
+            self._set_channel_volume(self.door_ring_channel, self._door_ring_volume)
             self.door_ring_channel.play(self.door_ring_sound)
         else:
             self.door_ring_channel.stop()
@@ -549,7 +578,7 @@ class AudioSystem:
         )
         if should_beep and not self.overspeed_ring_active:
             if self.overspeed_ring_sound is not None and self.overspeed_ring_channel is not None:
-                self.overspeed_ring_channel.set_volume(1.0)
+                self._set_channel_volume(self.overspeed_ring_channel, 1.0)
                 self.overspeed_ring_channel.play(self.overspeed_ring_sound, loops=-1)
             self.overspeed_ring_active = True
         elif not should_beep and self.overspeed_ring_active:
@@ -578,19 +607,19 @@ class AudioSystem:
                 self._compressor_starting = start_sound is not None
                 channel.stop()
                 if start_sound is not None:
-                    channel.set_volume(0.65)
+                    self._set_channel_volume(channel, 0.65)
                     channel.play(start_sound)
                 elif loop_sound is not None:
-                    channel.set_volume(0.65)
+                    self._set_channel_volume(channel, 0.65)
                     channel.play(loop_sound, loops=-1)
             elif self._compressor_starting:
                 if not channel.get_busy():
                     self._compressor_starting = False
                     if loop_sound is not None:
-                        channel.set_volume(0.65)
+                        self._set_channel_volume(channel, 0.65)
                         channel.play(loop_sound, loops=-1)
             elif loop_sound is not None and not channel.get_busy():
-                channel.set_volume(0.65)
+                self._set_channel_volume(channel, 0.65)
                 channel.play(loop_sound, loops=-1)
             return
 
@@ -599,7 +628,7 @@ class AudioSystem:
             self._compressor_starting = False
             channel.stop()
             if end_sound is not None:
-                channel.set_volume(0.65)
+                self._set_channel_volume(channel, 0.65)
                 channel.play(end_sound)
 
     def _update_brakes(self, train, dt):
@@ -624,7 +653,7 @@ class AudioSystem:
                     and self.brake_release_sound is not None
                     and self.brake_release_channel is not None):
                 self.brake_release_channel.stop()
-                self.brake_release_channel.set_volume(0.85)
+                self._set_channel_volume(self.brake_release_channel, 0.85)
                 self.brake_release_channel.play(self.brake_release_sound)
 
         for channel in (self.brake_channel, self.brake_channel_alt):
@@ -655,7 +684,7 @@ class AudioSystem:
         if channel is None:
             # Preserve sounds already playing rather than cutting one off.
             return
-        channel.set_volume(volume)
+        self._set_channel_volume(channel, volume)
         channel.play(sound)
 
     def _ensure_joint_positions(self, low, high):
@@ -769,7 +798,7 @@ class AudioSystem:
                 if channel.get_busy():
                     channel.stop()
                 continue
-            channel.set_volume(self.ROLLING_MAX_VOLUME * weight)
+            self._set_channel_volume(channel, self.ROLLING_MAX_VOLUME * weight)
             if not channel.get_busy():
                 channel.play(sound, loops=-1)
 
@@ -799,7 +828,7 @@ class AudioSystem:
                 continue
             target = weight * traction
             self._engine_volumes[index] += (target - self._engine_volumes[index]) * smoothing
-            channel.set_volume(self.ENGINE_MAX_VOLUME * self._engine_volumes[index])
+            self._set_channel_volume(channel, self.ENGINE_MAX_VOLUME * self._engine_volumes[index])
             if target > 0.01 and not channel.get_busy():
                 channel.play(sound, loops=-1)
             elif target <= 0.01 and self._engine_volumes[index] < 0.015:
@@ -811,7 +840,7 @@ class AudioSystem:
         high_active = traction_allowed and train.controller_notch >= 2 and speed_kmh >= 8.0
         if high_channel is not None and self._traction_high_sound is not None:
             if high_active and not getattr(self, "_high_component_was_active", False):
-                high_channel.set_volume(0.22 * traction)
+                self._set_channel_volume(high_channel, 0.22 * traction)
                 high_channel.play(self._traction_high_sound)
             self._high_component_was_active = high_active
 
@@ -825,7 +854,7 @@ class AudioSystem:
         chopper_channel = self._extra_engine_channels[1] if len(self._extra_engine_channels) > 1 else None
         if chopper_channel is not None and self._chopper_sound is not None:
             if chopper_active and not self._chopper_was_active:
-                chopper_channel.set_volume(0.24)
+                self._set_channel_volume(chopper_channel, 0.24)
                 chopper_channel.play(self._chopper_sound)
         self._chopper_was_active = chopper_active
 
@@ -841,7 +870,7 @@ class AudioSystem:
         self._tunnel_curve_volume += (
             target_volume - self._tunnel_curve_volume
         ) * smoothing
-        self._tunnel_curve_channel.set_volume(self._tunnel_curve_volume)
+        self._set_channel_volume(self._tunnel_curve_channel, self._tunnel_curve_volume)
 
         if target_volume > 0.005 and not self._tunnel_curve_channel.get_busy():
             self._tunnel_curve_channel.play(self._tunnel_curve_sound, loops=-1)

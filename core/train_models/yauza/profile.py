@@ -29,10 +29,16 @@ DOOR_LEFT_SIZE = (88, 225)
 DOOR_RIGHT_SIZE = (87, 225)
 DOOR_ANIMATION_DURATION_S = 3.0
 
+# Door recordings stay model-specific. Other rolling/motor/brake/compressor
+# recordings currently reuse the established Oka sound set until 81-777
+# recordings are supplied.
 AUDIO_DIRECTORY = "81-777"
+MOTION_AUDIO_DIRECTORY = "81-760"
 DOOR_ANIMATION_SUPPORTED = True
-LOCO_PAIRS = ()
-CAR_PAIRS = ()
-JOINT_PATTERN = None
-STATION_JOINT_PATTERN = None
-COMPRESSOR_SUPPORTED = False
+
+# Wheel-contact points scaled from the Oka atlas to the 81-777 source widths.
+LOCO_PAIRS = ((359, 646), (1833, 2082))
+CAR_PAIRS = ((193, 464), (1763, 2018))
+JOINT_PATTERN = r"joint_stl760_(\d+)_([12])_(\d+)\.(?:wav|mp3)$"
+STATION_JOINT_PATTERN = r"joint_station_(?:end_)?(\d+)_([12])_fade\.wav$"
+COMPRESSOR_SUPPORTED = True

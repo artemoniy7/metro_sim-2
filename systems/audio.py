@@ -183,7 +183,7 @@ class AudioSystem:
             pygame.mixer.set_num_channels(max(38, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
             self.rolling_channels = [self._create_channel(i) for i in range(3)]
-            self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 6)]
+            self.engine_channels = [self._create_channel(i) for i in range(3, 6)]
             self._extra_engine_channels = [self._create_channel(34), self._create_channel(35)]
             self._tunnel_curve_channel = self._create_channel(36)
             # Dedicated channel for the quiet wheel/rail squeal on Moscow-2020.
@@ -196,7 +196,7 @@ class AudioSystem:
             self.brake_release_channel = self._create_channel(10)
             self.overspeed_ring_channel = self._create_channel(11)
             self.door_channel = self._create_channel(12)
-            self.joint_channels = [pygame.mixer.Channel(i) for i in range(13, 32)]
+            self.joint_channels = [self._create_channel(i) for i in range(13, 32)]
             self.station_ambience_channel = self._create_channel(32)
             # Dedicated channel: compressor audio must not interrupt brakes,
             # announcements, motors, or rail-joint recordings.

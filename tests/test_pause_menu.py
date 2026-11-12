@@ -54,6 +54,46 @@ class PauseMenuTests(unittest.TestCase):
     def test_main_menu_action_is_reported(self):
         self.assertEqual(self.click("main_menu"), "main_menu")
 
+    def test_settings_open_controls_and_rebind_key(self):
+        self.menu._save_settings = lambda: None
+        self.menu.page = "settings"
+        self.click("controls")
+        self.menu.render(self.surface)
+        self.click("bind_traction_up")
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_t, mod=0)
+        self.menu.handle_event(event)
+        self.assertEqual(self.menu.keybinds["traction_up"], "t")
+        self.assertIsNone(self.menu.capture_action)
+
+    def test_duplicate_key_binding_is_rejected(self):
+        self.menu._save_settings = lambda: None
+        self.menu.page = "controls"
+        self.menu.render(self.surface)
+        self.click("bind_traction_up")
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_s, mod=0)
+        self.menu.handle_event(event)
+        self.assertEqual(self.menu.keybinds["traction_up"], "w")
+        self.assertIn("уже назначена", self.menu.notice)
+
+    def test_audio_group_volume_updates_audio_system(self):
+        class FakeAudio:
+            def __init__(self):
+                self.values = {}
+            def set_volume_group(self, group, value):
+                self.values[group] = value
+
+        fake = FakeAudio()
+        self.menu.page = "audio"
+        self.menu.set_audio(fake)
+        self.click("volume_train_down")
+        self.assertEqual(self.menu.volume_groups["train"], 90)
+        self.assertEqual(fake.values["train"], 0.9)
+
+    def test_fullscreen_setting_is_not_present(self):
+        self.menu.page = "settings"
+        self.menu.render(self.surface)
+        self.assertNotIn("fullscreen", self.menu.buttons)
+
 
 if __name__ == "__main__":
     unittest.main()

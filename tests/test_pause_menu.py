@@ -83,6 +83,7 @@ class PauseMenuTests(unittest.TestCase):
                 self.values[group] = value
 
         fake = FakeAudio()
+        self.menu._save_settings = lambda: None
         self.menu.page = "audio"
         self.menu.set_audio(fake)
         self.click("volume_train_down")

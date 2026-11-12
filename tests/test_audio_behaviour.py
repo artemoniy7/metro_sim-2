@@ -78,9 +78,26 @@ class AudioBehaviourTests(unittest.TestCase):
             )
             volumes.append(audio._wheel_squeal_volume)
 
-        self.assertAlmostEqual(volumes[0], 0.1, places=3)
+        self.assertAlmostEqual(volumes[0], 0.06, places=3)
         self.assertEqual(volumes, sorted(volumes))
-        self.assertAlmostEqual(volumes[-1], 0.22, places=3)
+        self.assertAlmostEqual(volumes[-1], 0.16, places=3)
+
+    def test_wheel_squeal_fades_out_at_high_speed(self):
+        audio = self.make_audio()
+        train = SimpleNamespace(
+            speed=60.0 / 3.6,
+            controller_notch=-3,
+            emergency_brake_active=False,
+        )
+
+        audio._update_wheel_squeal(train, 10.0)
+        self.assertGreater(audio._wheel_squeal_volume, 0.0)
+        self.assertLess(audio._wheel_squeal_volume, 0.16)
+
+        train.speed = 70.0 / 3.6
+        audio._update_wheel_squeal(train, 10.0)
+        self.assertEqual(audio._wheel_squeal_volume, 0.0)
+        self.assertFalse(audio.wheel_squeal_channel.get_busy())
 
     def test_light_and_medium_brakes_loop_without_repetition_gaps(self):
         for notch in (1, 2):

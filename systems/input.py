@@ -102,8 +102,14 @@ class InputController:
                 if abs(train.speed) < 0.05 and train.controller_notch == -3:
                     train.overspeed_emergency_active = False
                     train.overspeed_timer = 0.0
-        elif event.type == pygame.KEYUP and self.matches(event, "emergency_brake"):
-            self.emergency = False
+        elif event.type == pygame.KEYUP:
+            emergency_key = self.keybinds.get("emergency_brake", "space").split("+")[-1]
+            try:
+                released_emergency = event.key == pygame.key.key_code(emergency_key)
+            except (ValueError, pygame.error):
+                released_emergency = False
+            if released_emergency:
+                self.emergency = False
 
     def update(self, train, dt):
         train.manual_emergency_brake_active = self.emergency

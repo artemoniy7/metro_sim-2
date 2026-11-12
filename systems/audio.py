@@ -33,6 +33,9 @@ class AudioSystem:
     BRAKE_SOUND_MIN_SPEED_KMH = 2.0
     BRAKE_REPEAT_INTERVAL_S = 1.25
     BRAKE_VOLUME_SMOOTHING = 2.5
+    WHEEL_SQUEAL_START_SPEED_KMH = 10.0
+    WHEEL_SQUEAL_FULL_SPEED_KMH = 15.0
+    WHEEL_SQUEAL_VOLUME = 0.1
 
     # Source-image x coordinates for the two points in each wheel pair.
     LOCO_PAIRS = ((345, 621), (1763, 2003))
@@ -77,6 +80,10 @@ class AudioSystem:
         self._tunnel_curve_sound = None
         self._tunnel_curve_channel = None
         self._tunnel_curve_volume = 0.0
+        self.wheel_squeal_sound = None
+        self.wheel_squeal_channel = None
+        self._wheel_squeal_volume = 0.0
+        self.wheel_squeal_supported = bool(getattr(profile, "WHEEL_SQUEAL_SUPPORTED", False))
         self.brake_sounds = {}
         self.door_sound = None
         self.door_ring_sound = None
@@ -165,12 +172,14 @@ class AudioSystem:
 
             # Give each sound category its own channels. Track-joint sounds
             # must never steal a channel from the motor, brakes, or announcements.
-            pygame.mixer.set_num_channels(max(37, pygame.mixer.get_num_channels()))
+            pygame.mixer.set_num_channels(max(38, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
             self.rolling_channels = [pygame.mixer.Channel(i) for i in range(3)]
             self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 6)]
             self._extra_engine_channels = [pygame.mixer.Channel(34), pygame.mixer.Channel(35)]
             self._tunnel_curve_channel = pygame.mixer.Channel(36)
+            # Dedicated channel for the quiet wheel/rail squeal on Moscow-2020.
+            self.wheel_squeal_channel = pygame.mixer.Channel(37)
             # Keep both brake channels reserved from automatic joint-sound playback.
             self.brake_channel = pygame.mixer.Channel(6)
             self.brake_channel_alt = pygame.mixer.Channel(7)
@@ -238,6 +247,10 @@ class AudioSystem:
                     self.brake_sounds[key] = pygame.mixer.Sound(str(brake_dir / filename))
                 except (pygame.error, OSError):
                     self.brake_sounds[key] = None
+
+            # Reuse the short low brake-squeal recording as a very quiet,
+            # continuous wheel/rail bed; it has its own channel and level.
+            self.wheel_squeal_sound = self.brake_sounds.get("gentle")
 
             sound_dir = motion_dir / "joint"
             # New exterior recordings encode the recording speed in the filename:
@@ -634,12 +647,29 @@ class AudioSystem:
                 current_channel = channels[self._active_brake_channel]
                 next_channel.stop()
                 next_channel.set_volume(target_volume)
-                next_channel.play(sound, fade_ms=350)
+                # Light and medium brake recordings are looped continuously.
+                # Replaying them as short one-shots caused an audible silence
+                # between each repetition.
+                next_channel.play(
+                    sound,
+                    loops=-1 if brake_notch in (1, 2) else 0,
+                    fade_ms=350,
+                )
                 if current_channel.get_busy():
                     current_channel.fadeout(350)
                 self._active_brake_channel = next_index
             self._brake_repeat_timer = 0.0
             self._last_brake_notch = brake_notch
+        elif brake_notch in (1, 2):
+            # Recover if the mixer ended a loop unexpectedly, without adding
+            # the pause/restart cadence used by the strong-brake one-shots.
+            channels = (self.brake_channel, self.brake_channel_alt)
+            channel = channels[self._active_brake_channel]
+            if speed_kmh > self.BRAKE_NEAR_STOP_SPEED_KMH and not channel.get_busy():
+                sound = self.brake_sounds.get(sound_key)
+                if sound is not None:
+                    channel.set_volume(target_volume)
+                    channel.play(sound, loops=-1)
         else:
             self._brake_repeat_timer += max(0.0, dt)
             if self._brake_repeat_timer >= self.BRAKE_REPEAT_INTERVAL_S:
@@ -905,16 +935,47 @@ class AudioSystem:
                 channel.stop()
         if self._tunnel_curve_channel is not None:
             self._tunnel_curve_channel.stop()
+        if self.wheel_squeal_channel is not None:
+            self.wheel_squeal_channel.stop()
+        self._wheel_squeal_volume = 0.0
         self._engine_volumes = [0.0, 0.0, 0.0]
         self._tunnel_curve_volume = 0.0
         self._chopper_was_active = False
         self._high_component_was_active = False
+
+    def _update_wheel_squeal(self, train, dt):
+        """Fade in a quiet wheel/rail squeal from 10 to 15 km/h on 81-777."""
+        channel = self.wheel_squeal_channel
+        if (not self.wheel_squeal_supported or channel is None
+                or self.wheel_squeal_sound is None):
+            return
+
+        speed_kmh = abs(train.speed) * 3.6
+        weight = self._fade_in(
+            speed_kmh,
+            self.WHEEL_SQUEAL_START_SPEED_KMH,
+            self.WHEEL_SQUEAL_FULL_SPEED_KMH,
+        )
+        target_volume = self.WHEEL_SQUEAL_VOLUME * weight
+        smoothing = 1.0 - math.exp(-max(0.0, dt) / 0.45)
+        self._wheel_squeal_volume += (
+            target_volume - self._wheel_squeal_volume
+        ) * smoothing
+        channel.set_volume(self._wheel_squeal_volume)
+
+        if target_volume > 0.002 and not channel.get_busy():
+            channel.play(self.wheel_squeal_sound, loops=-1)
+        elif self._wheel_squeal_volume < 0.001:
+            if channel.get_busy():
+                channel.stop()
+            self._wheel_squeal_volume = 0.0
 
     def _update_motion_sounds(self, train, dt, in_tunnel=False):
         """Neutral reverser means no rolling, traction, or tunnel-running audio."""
         if getattr(train, "reverser_position", None) == 0:
             self._stop_motion_sounds()
             return
+        self._update_wheel_squeal(train, dt)
         self._update_tunnel_curve(train, dt, in_tunnel)
         self._update_rolling(abs(train.speed))
         self._update_engine(train, dt)

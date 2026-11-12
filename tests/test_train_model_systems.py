@@ -123,7 +123,9 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertAlmostEqual(brake.calculate(speed, -3), 1.1, places=3)
         self.assertEqual(train.COMBINED_BRAKE_BLEND_MODE, "max")
         self.assertEqual(train.MAX_COMBINED_SERVICE_DECELERATION, 1.1)
-        self.assertEqual(brake.calculate(5.0 / 3.6, -3), 0.0)
+        self.assertAlmostEqual(brake.calculate(5.0 / 3.6, -3), 1.1 * 0.5, places=3)
+        self.assertEqual(brake.calculate(1.5 / 3.6, -3), 0.0)
+        self.assertEqual(train.ED_TO_PNEUMATIC_SPEED_KMH, 18.0)
 
         self.assertEqual(brake.calculate(speed, -3, available=False), 0.0)
         self.assertEqual(brake.mode, "off")

@@ -18,8 +18,8 @@ class Moscow2020ElectrodynamicBrake:
     """Calibrated ED brake for 81-777; detailed curve remains approximate."""
 
     MAX_SERVICE_DECELERATION = 1.1
-    MIN_SPEED_KMH = 5.0
-    FULL_EFFORT_SPEED_KMH = 15.0
+    MIN_SPEED_KMH = 2.0
+    FULL_EFFORT_SPEED_KMH = 8.0
 
     def __init__(self, max_deceleration=None):
         self.max_deceleration = float(

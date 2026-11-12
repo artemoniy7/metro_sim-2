@@ -35,8 +35,10 @@ class AudioSystem:
     BRAKE_VOLUME_SMOOTHING = 2.5
     WHEEL_SQUEAL_START_SPEED_KMH = 15.0
     WHEEL_SQUEAL_FULL_SPEED_KMH = 20.0
-    WHEEL_SQUEAL_BASE_VOLUME = 0.1
-    WHEEL_SQUEAL_MAX_VOLUME = 0.22
+    WHEEL_SQUEAL_FADE_START_SPEED_KMH = 45.0
+    WHEEL_SQUEAL_STOP_SPEED_KMH = 70.0
+    WHEEL_SQUEAL_BASE_VOLUME = 0.06
+    WHEEL_SQUEAL_MAX_VOLUME = 0.16
 
     # Source-image x coordinates for the two points in each wheel pair.
     LOCO_PAIRS = ((345, 621), (1763, 2003))
@@ -945,7 +947,7 @@ class AudioSystem:
         self._high_component_was_active = False
 
     def _update_wheel_squeal(self, train, dt):
-        """Mix wheel squeal only during braking, fading in above 15 km/h."""
+        """Mix wheel squeal during braking, attenuating it at high speed."""
         channel = self.wheel_squeal_channel
         if (not self.wheel_squeal_supported or channel is None
                 or self.wheel_squeal_sound is None):
@@ -958,12 +960,18 @@ class AudioSystem:
         ))
         braking = emergency or brake_notch > 0
 
-        # Without a brake command there must be no wheel squeal.
-        speed_weight = self._fade_in(
+        # Squeal is most prominent at moderate speed and fades out by 70 km/h.
+        speed_rise = self._fade_in(
             speed_kmh,
             self.WHEEL_SQUEAL_START_SPEED_KMH,
             self.WHEEL_SQUEAL_FULL_SPEED_KMH,
-        ) if braking else 0.0
+        )
+        high_speed_fade = 1.0 - self._fade_in(
+            speed_kmh,
+            self.WHEEL_SQUEAL_FADE_START_SPEED_KMH,
+            self.WHEEL_SQUEAL_STOP_SPEED_KMH,
+        )
+        speed_weight = speed_rise * high_speed_fade if braking else 0.0
         brake_weight = max(0.0, min(1.0, (brake_notch - 1) / 3.0))
         brake_volume = (
             self.WHEEL_SQUEAL_BASE_VOLUME

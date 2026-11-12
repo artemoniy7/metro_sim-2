@@ -57,7 +57,7 @@ class TrainModelRegistryTests(unittest.TestCase):
                 self.assertEqual(len({type(getattr(train, attribute)) for train in trains}), 4)
 
     def test_provisional_models_do_not_claim_oka_pressure_units_or_ed(self):
-        for model_id in ("81-717", "81-740", "81-777"):
+        for model_id in ("81-717", "81-740"):
             train = create_train({"model_id": model_id, "name": model_id})
             self.assertEqual(train.PRESSURE_DISPLAY_UNIT, "усл. ед.")
             self.assertFalse(train.electrodynamic_brake.available)
@@ -112,6 +112,22 @@ class TrainModelRegistryTests(unittest.TestCase):
                 self.assertEqual(config["name"], model_id)
 
 
+
+    def test_81_777_electrodynamic_brake_has_three_calibrated_steps(self):
+        train = create_train({"model_id": "81-777", "name": "81-777"})
+        brake = train.electrodynamic_brake
+        speed = 60.0 / 3.6
+
+        self.assertAlmostEqual(brake.calculate(speed, -1), 1.1 / 3.0, places=3)
+        self.assertAlmostEqual(brake.calculate(speed, -2), 2.2 / 3.0, places=3)
+        self.assertAlmostEqual(brake.calculate(speed, -3), 1.1, places=3)
+        self.assertEqual(brake.calculate(5.0 / 3.6, -3), 0.0)
+
+        self.assertEqual(brake.calculate(speed, -3, available=False), 0.0)
+        self.assertEqual(brake.mode, "off")
+        self.assertGreater(brake.calculate(speed, -3, regeneration_available=False), 0.0)
+        self.assertEqual(brake.mode, "rheostatic")
+
     def test_81_777_uses_provided_wagon_length_and_provisional_physics(self):
         data_dir = Path(__file__).resolve().parents[1] / "data" / "trains"
         config = json.loads((data_dir / "81-777.json").read_text(encoding="utf-8"))
@@ -120,8 +136,9 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertEqual(train.loco_length_m, 19.32)
         self.assertEqual(train.car_length_m, 19.32)
         self.assertEqual(len(train.wagons), 8)
-        self.assertEqual(train.physics_reference_status, "provisional_pending_technical_sources")
-        self.assertFalse(train.electrodynamic_brake.available)
+        self.assertEqual(train.physics_reference_status, "partially_sourced_braking_calibration")
+        self.assertTrue(train.electrodynamic_brake.available)
+        self.assertAlmostEqual(train.electrodynamic_brake.calculate(60.0 / 3.6, -3), 1.1, places=3)
 
 
 if __name__ == "__main__":

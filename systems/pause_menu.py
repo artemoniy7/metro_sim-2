@@ -231,7 +231,7 @@ class PauseMenu:
 
     def _render_controls(self, surface):
         panel = self._panel(surface, 760, 620)
-        self._heading(surface, panel, "УПРАВЛЕНИЕ", "Нажми «Изменить», затем новую клавишу. Колёсико мыши управляет прокруткой камеры.")
+        self._heading(surface, panel, "УПРАВЛЕНИЕ", "Нажми «Изменить», затем новую клавишу. ESC — пауза; колесо мыши — зум камеры.")
         actions = list(self.keybinds.items())
         visible = actions[self.scroll_offset:self.scroll_offset + 10]
         row_top = panel.y + 92

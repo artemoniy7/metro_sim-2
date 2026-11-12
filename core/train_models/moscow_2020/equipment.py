@@ -1,8 +1,9 @@
 """Model-specific 81-777 equipment.
 
-The published 1.1 m/s² maximum deceleration is used as the service-brake
-calibration target. The detailed notch and speed curves below are explicit
-simulation approximations because a factory brake-force curve was not found.
+The published 1.3 m/s² maximum acceleration and 1.1 m/s² maximum
+deceleration are calibration targets. Detailed traction speed/notch curves
+and brake curves remain explicit simulation approximations because
+manufacturer force/current curves were not found.
 """
 from core.train_models.shared.provisional_equipment import (
     ConfiguredTraction, ProvisionalPneumaticSystem,
@@ -67,4 +68,35 @@ class Moscow2020ElectrodynamicBrake:
 
 
 class Moscow2020Traction(ConfiguredTraction):
-    """Uses the provisional traction-notch curve from the train data file."""
+    """Speed-tapered traction for the 81-777 simulation profile.
+
+    The 1.3 m/s² low-speed maximum is based on the published train-family
+    figure. Intermediate speed factors are provisional, not factory data.
+    """
+
+    # (speed in km/h, fraction of the configured notch effort).
+    # The curve holds full effort at low speed, then tapers toward top speed.
+    SPEED_EFFORT_CURVE = (
+        (0.0, 1.0),
+        (30.0, 1.0),
+        (60.0, 0.75),
+        (90.0, 0.35),
+    )
+
+    @classmethod
+    def _speed_effort_factor(cls, speed_mps):
+        speed_kmh = max(0.0, float(speed_mps)) * 3.6
+        curve = cls.SPEED_EFFORT_CURVE
+        if speed_kmh <= curve[0][0]:
+            return curve[0][1]
+        for (left_speed, left_factor), (right_speed, right_factor) in zip(
+            curve, curve[1:]
+        ):
+            if speed_kmh <= right_speed:
+                ratio = (speed_kmh - left_speed) / (right_speed - left_speed)
+                return left_factor + ratio * (right_factor - left_factor)
+        return curve[-1][1]
+
+    def acceleration(self, notch, speed_mps, traction_notches):
+        notch_effort = super().acceleration(notch, speed_mps, traction_notches)
+        return notch_effort * self._speed_effort_factor(speed_mps)

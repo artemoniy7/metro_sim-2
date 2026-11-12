@@ -2,6 +2,7 @@
 import pygame
 from settings import WINDOW_SIZE, WINDOW_TITLE, FPS
 from systems.menu import MainMenu
+from systems.pause_menu import PauseMenu
 
 
 def create_selected_game(menu):
@@ -26,8 +27,10 @@ def main():
     pygame.display.set_caption(WINDOW_TITLE)
     clock = pygame.time.Clock()
     menu = MainMenu(WINDOW_SIZE)
+    pause_menu = PauseMenu()
     game = None
     scene = "menu"
+    paused = False
     running = True
 
     while running:
@@ -43,15 +46,43 @@ def main():
                 elif action == "start":
                     game = create_selected_game(menu)
                     scene = "game"
+                    paused = False
             elif game is not None:
-                game.handle_event(event)
+                if paused:
+                    action = pause_menu.handle_event(event)
+                    if action == "resume":
+                        paused = False
+                        pygame.mixer.unpause()
+                    elif action == "main_menu":
+                        paused = False
+                        pygame.mixer.unpause()
+                        scene = "menu"
+                        menu.page = "home"
+                        game = None
+                    elif action == "toggle_fullscreen":
+                        if pause_menu.fullscreen:
+                            desktop = pygame.display.Info()
+                            screen = pygame.display.set_mode(
+                                (desktop.current_w, desktop.current_h), pygame.NOFRAME
+                            )
+                        else:
+                            screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    paused = True
+                    pause_menu.page = "pause"
+                    pygame.mixer.pause()
+                else:
+                    game.handle_event(event)
 
         if scene == "menu":
             menu.update(dt)
             menu.render(screen)
         elif game is not None:
-            game.update(dt)
+            if not paused:
+                game.update(dt)
             game.render(screen)
+            if paused:
+                pause_menu.render(screen)
         pygame.display.flip()
 
     pygame.quit()

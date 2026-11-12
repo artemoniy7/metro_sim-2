@@ -52,6 +52,7 @@ def main():
             elif game is not None:
                 if paused:
                     action = pause_menu.handle_event(event, game.audio)
+                    game.controls.set_keybinds(pause_menu.keybinds)
                     if action == "resume":
                         paused = False
                         pygame.mixer.unpause()

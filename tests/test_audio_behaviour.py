@@ -33,33 +33,57 @@ class FakeChannel:
 
 
 class AudioBehaviourTests(unittest.TestCase):
-    def test_wheel_squeal_fades_in_between_10_and_15_kmh_at_low_level(self):
+    @staticmethod
+    def make_audio():
         audio = AudioSystem.__new__(AudioSystem)
         audio.wheel_squeal_supported = True
         audio.wheel_squeal_sound = object()
         audio.wheel_squeal_channel = FakeChannel()
         audio._wheel_squeal_volume = 0.0
+        return audio
 
-        audio._update_wheel_squeal(SimpleNamespace(speed=12.5 / 3.6), 1.0)
+    def test_wheel_squeal_is_silent_without_braking(self):
+        audio = self.make_audio()
+
+        audio._update_wheel_squeal(
+            SimpleNamespace(speed=25.0 / 3.6, controller_notch=0,
+                            emergency_brake_active=False),
+            1.0,
+        )
+
+        self.assertEqual(audio._wheel_squeal_volume, 0.0)
+        self.assertEqual(audio.wheel_squeal_channel.play_calls, [])
+
+    def test_wheel_squeal_starts_above_15_kmh_during_braking(self):
+        audio = self.make_audio()
+
+        audio._update_wheel_squeal(
+            SimpleNamespace(speed=17.5 / 3.6, controller_notch=-1,
+                            emergency_brake_active=False),
+            1.0,
+        )
 
         self.assertGreater(audio._wheel_squeal_volume, 0.0)
         self.assertLess(audio._wheel_squeal_volume, 0.1)
         self.assertEqual(audio.wheel_squeal_channel.play_calls[0]["loops"], -1)
 
-    def test_wheel_squeal_is_capped_at_point_one(self):
-        audio = AudioSystem.__new__(AudioSystem)
-        audio.wheel_squeal_supported = True
-        audio.wheel_squeal_sound = object()
-        audio.wheel_squeal_channel = FakeChannel()
-        audio._wheel_squeal_volume = 0.0
+    def test_wheel_squeal_grows_with_brake_notch(self):
+        volumes = []
+        for notch in (1, 2, 3, 4):
+            audio = self.make_audio()
+            audio._update_wheel_squeal(
+                SimpleNamespace(speed=25.0 / 3.6, controller_notch=-notch,
+                                emergency_brake_active=(notch == 4)),
+                10.0,
+            )
+            volumes.append(audio._wheel_squeal_volume)
 
-        audio._update_wheel_squeal(SimpleNamespace(speed=25.0 / 3.6), 10.0)
-
-        self.assertAlmostEqual(audio._wheel_squeal_volume, 0.1, places=3)
-        self.assertAlmostEqual(audio.wheel_squeal_channel.volume, 0.1, places=3)
+        self.assertAlmostEqual(volumes[0], 0.1, places=3)
+        self.assertEqual(volumes, sorted(volumes))
+        self.assertAlmostEqual(volumes[-1], 0.22, places=3)
 
     def test_light_and_medium_brakes_loop_without_repetition_gaps(self):
-        for notch, sound_key in ((1, "gentle"), (2, "medium")):
+        for notch in (1, 2):
             with self.subTest(notch=notch):
                 audio = AudioSystem.__new__(AudioSystem)
                 audio.brake_sounds = {"gentle": object(), "medium": object()}

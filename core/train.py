@@ -16,6 +16,7 @@ class Train:
     PRESSURE_DISPLAY_UNIT = "кгс/см²"
     PARKING_BRAKE_RELEASE_PRESSURE = 6.3
     MAX_COMBINED_SERVICE_DECELERATION = None
+    COMBINED_BRAKE_BLEND_MODE = "sum"
 
     def __init__(self, data=None):
         data = data or {}
@@ -228,7 +229,12 @@ class Train:
             # it is not an instantaneous, pressure-independent deceleration.
             deceleration = self.emergency_brake * friction_fraction
         else:
-            deceleration = ed_deceleration + friction_deceleration
+            if self.COMBINED_BRAKE_BLEND_MODE == "max":
+                # Model pneumatic replacement instead of adding full ED and
+                # friction efforts on top of one another.
+                deceleration = max(ed_deceleration, friction_deceleration)
+            else:
+                deceleration = ed_deceleration + friction_deceleration
         deceleration = max(deceleration, parking_deceleration)
         # Some model adapters publish a maximum combined brake effort. This
         # prevents ED + pneumatic blending from exceeding that calibrated cap.

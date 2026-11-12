@@ -143,31 +143,27 @@ class TrainModelRegistryTests(unittest.TestCase):
             train.traction_system.acceleration(4, 0.0, notches), 1.3
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 10.0 / 3.6, notches), 1.196
+            train.traction_system.acceleration(4, 30.0 / 3.6, notches), 1.3
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 30.0 / 3.6, notches), 0.936
+            train.traction_system.acceleration(4, 60.0 / 3.6, notches), 1.3
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 60.0 / 3.6, notches), 0.624
+            train.traction_system.acceleration(4, 75.0 / 3.6, notches), 0.8775
         )
         self.assertAlmostEqual(
-            train.traction_system.acceleration(4, 90.0 / 3.6, notches), 0.325
+            train.traction_system.acceleration(4, 90.0 / 3.6, notches), 0.455
         )
-        self.assertGreater(
+        self.assertEqual(
+            train.traction_system.acceleration(4, 60.0 / 3.6, notches),
             train.traction_system.acceleration(4, 0.0, notches),
-            train.traction_system.acceleration(4, 10.0 / 3.6, notches),
-        )
-        self.assertGreater(
-            train.traction_system.acceleration(4, 10.0 / 3.6, notches),
-            train.traction_system.acceleration(4, 30.0 / 3.6, notches),
-        )
-        self.assertGreater(
-            train.traction_system.acceleration(4, 30.0 / 3.6, notches),
-            train.traction_system.acceleration(4, 60.0 / 3.6, notches),
         )
         self.assertGreater(
             train.traction_system.acceleration(4, 60.0 / 3.6, notches),
+            train.traction_system.acceleration(4, 75.0 / 3.6, notches),
+        )
+        self.assertGreater(
+            train.traction_system.acceleration(4, 75.0 / 3.6, notches),
             train.traction_system.acceleration(4, 90.0 / 3.6, notches),
         )
 

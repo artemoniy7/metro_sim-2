@@ -121,6 +121,8 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertAlmostEqual(brake.calculate(speed, -1), 1.1 / 3.0, places=3)
         self.assertAlmostEqual(brake.calculate(speed, -2), 2.2 / 3.0, places=3)
         self.assertAlmostEqual(brake.calculate(speed, -3), 1.1, places=3)
+        self.assertEqual(train.COMBINED_BRAKE_BLEND_MODE, "max")
+        self.assertEqual(train.MAX_COMBINED_SERVICE_DECELERATION, 1.1)
         self.assertEqual(brake.calculate(5.0 / 3.6, -3), 0.0)
 
         self.assertEqual(brake.calculate(speed, -3, available=False), 0.0)
@@ -128,7 +130,7 @@ class TrainModelRegistryTests(unittest.TestCase):
         self.assertGreater(brake.calculate(speed, -3, regeneration_available=False), 0.0)
         self.assertEqual(brake.mode, "rheostatic")
 
-    def test_81_777_uses_provided_wagon_length_and_provisional_physics(self):
+    def test_81_777_uses_provided_wagon_length_and_calibrated_physics(self):
         data_dir = Path(__file__).resolve().parents[1] / "data" / "trains"
         config = json.loads((data_dir / "81-777.json").read_text(encoding="utf-8"))
         train = create_train(config)

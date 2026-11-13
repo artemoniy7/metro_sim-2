@@ -40,15 +40,25 @@ def main():
                 running = False
                 continue
             if scene == "menu":
-                action = menu.handle_event(event)
-                if action == "quit":
-                    running = False
-                elif action == "start":
-                    game = create_selected_game(menu)
-                    game.controls.set_keybinds(pause_menu.keybinds)
-                    pause_menu.set_audio(game.audio)
-                    scene = "game"
-                    paused = False
+                if menu.page == "settings":
+                    pause_menu.handle_event(event)
+                    if pause_menu.page == "pause":
+                        # Returning from the shared settings screen goes back
+                        # to the main menu, not into an in-game pause state.
+                        pause_menu.page = "settings"
+                        menu.page = "home"
+                else:
+                    action = menu.handle_event(event)
+                    if menu.page == "settings":
+                        pause_menu.page = "settings"
+                    if action == "quit":
+                        running = False
+                    elif action == "start":
+                        game = create_selected_game(menu)
+                        game.controls.set_keybinds(pause_menu.keybinds)
+                        pause_menu.set_audio(game.audio)
+                        scene = "game"
+                        paused = False
             elif game is not None:
                 if paused:
                     action = pause_menu.handle_event(event, game.audio)
@@ -71,7 +81,15 @@ def main():
 
         if scene == "menu":
             menu.update(dt)
-            menu.render(screen)
+            if menu.page == "settings":
+                # Reuse the same full controls/audio settings in both menus.
+                menu_page = menu.page
+                menu.page = "home"
+                menu.render(screen)
+                menu.page = menu_page
+                pause_menu.render(screen)
+            else:
+                menu.render(screen)
         elif game is not None:
             if not paused:
                 game.update(dt)

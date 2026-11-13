@@ -126,6 +126,9 @@ class AudioSystem:
         self._compressor_starting = False
         self.volume_groups = {"master": 1.0, "train": 1.0, "environment": 1.0, "announcements": 1.0}
         self._channel_base_volumes = {}
+        # pygame.mixer.Channel has no public get_id() method; keep the
+        # channel index alongside each wrapper created by this audio system.
+        self._channel_indices = {}
 
         try:
             if pygame.mixer.get_init() is None:
@@ -179,25 +182,25 @@ class AudioSystem:
             # must never steal a channel from the motor, brakes, or announcements.
             pygame.mixer.set_num_channels(max(38, pygame.mixer.get_num_channels()))
             pygame.mixer.set_reserved(13)
-            self.rolling_channels = [pygame.mixer.Channel(i) for i in range(3)]
-            self.engine_channels = [pygame.mixer.Channel(i) for i in range(3, 6)]
-            self._extra_engine_channels = [pygame.mixer.Channel(34), pygame.mixer.Channel(35)]
-            self._tunnel_curve_channel = pygame.mixer.Channel(36)
+            self.rolling_channels = [self._create_channel(i) for i in range(3)]
+            self.engine_channels = [self._create_channel(i) for i in range(3, 6)]
+            self._extra_engine_channels = [self._create_channel(34), self._create_channel(35)]
+            self._tunnel_curve_channel = self._create_channel(36)
             # Dedicated channel for the quiet wheel/rail squeal on Moscow-2020.
-            self.wheel_squeal_channel = pygame.mixer.Channel(37)
+            self.wheel_squeal_channel = self._create_channel(37)
             # Keep both brake channels reserved from automatic joint-sound playback.
-            self.brake_channel = pygame.mixer.Channel(6)
-            self.brake_channel_alt = pygame.mixer.Channel(7)
-            self.station_announcement_channel = pygame.mixer.Channel(8)
-            self.door_ring_channel = pygame.mixer.Channel(9)
-            self.brake_release_channel = pygame.mixer.Channel(10)
-            self.overspeed_ring_channel = pygame.mixer.Channel(11)
-            self.door_channel = pygame.mixer.Channel(12)
-            self.joint_channels = [pygame.mixer.Channel(i) for i in range(13, 32)]
-            self.station_ambience_channel = pygame.mixer.Channel(32)
+            self.brake_channel = self._create_channel(6)
+            self.brake_channel_alt = self._create_channel(7)
+            self.station_announcement_channel = self._create_channel(8)
+            self.door_ring_channel = self._create_channel(9)
+            self.brake_release_channel = self._create_channel(10)
+            self.overspeed_ring_channel = self._create_channel(11)
+            self.door_channel = self._create_channel(12)
+            self.joint_channels = [self._create_channel(i) for i in range(13, 32)]
+            self.station_ambience_channel = self._create_channel(32)
             # Dedicated channel: compressor audio must not interrupt brakes,
             # announcements, motors, or rail-joint recordings.
-            self.compressor_channel = pygame.mixer.Channel(33)
+            self.compressor_channel = self._create_channel(33)
             station_sound_dir = ASSETS_DIR / "sounds" / "station"
             for crowd, filename in (
                 ("empty", "station_ambience_empty_01.wav"),
@@ -310,8 +313,14 @@ class AudioSystem:
             # Sound is optional; the simulation should still start without it.
             self.sounds = {}
 
-    def _channel_volume_group(self, channel):
-        channel_id = channel.get_id()
+    def _create_channel(self, channel_id):
+        """Create a mixer channel and remember its numeric index."""
+        channel = pygame.mixer.Channel(channel_id)
+        self._channel_indices[id(channel)] = channel_id
+        return channel
+
+    @staticmethod
+    def _channel_volume_group(channel_id):
         if channel_id == 8:
             return "announcements"
         if 13 <= channel_id <= 32:
@@ -321,10 +330,15 @@ class AudioSystem:
     def _set_channel_volume(self, channel, volume):
         if channel is None:
             return
-        channel_id = channel.get_id()
-        self._channel_base_volumes[channel_id] = float(volume)
-        group = self._channel_volume_group(channel)
-        effective = float(volume) * self.volume_groups["master"] * self.volume_groups[group]
+        channel_id = self._channel_indices.get(id(channel))
+        if channel_id is None:
+            # Keep unregistered/external channels usable without group scaling.
+            channel.set_volume(max(0.0, min(1.0, float(volume))))
+            return
+        base_volume = float(volume)
+        self._channel_base_volumes[channel_id] = base_volume
+        group = self._channel_volume_group(channel_id)
+        effective = base_volume * self.volume_groups["master"] * self.volume_groups[group]
         channel.set_volume(max(0.0, min(1.0, effective)))
 
     def set_volume_group(self, group, value):
@@ -333,7 +347,7 @@ class AudioSystem:
         self.volume_groups[group] = max(0.0, min(1.0, float(value)))
         for channel_id, base_volume in self._channel_base_volumes.items():
             channel = pygame.mixer.Channel(channel_id)
-            channel_group = self._channel_volume_group(channel)
+            channel_group = self._channel_volume_group(channel_id)
             effective = base_volume * self.volume_groups["master"] * self.volume_groups[channel_group]
             channel.set_volume(max(0.0, min(1.0, effective)))
 

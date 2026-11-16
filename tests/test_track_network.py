@@ -58,6 +58,15 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertEqual(network.local_track_segments, layout["track_segments"])
         self.assertEqual(network.local_switches, layout["switches"])
 
+    def test_station_platform_layout_selects_adjacent_tracks(self):
+        side = self.network.station_platform_lane_indices({"platform_layout": "side"})
+        outer = self.network.station_platform_lane_indices({"platform_layout": "outer"})
+        island = self.network.station_platform_lane_indices({"platform_layout": "island"})
+
+        self.assertEqual(side, [0, 1])
+        self.assertEqual(outer, [0, 1])
+        self.assertEqual(island, [1])
+
     def test_user_request_cannot_change_track(self):
         train = FakeTrain()
         self.assertFalse(self.network.request_lane_change(train, -1, [train]))

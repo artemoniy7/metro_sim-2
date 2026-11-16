@@ -71,6 +71,25 @@ class TrackNetwork:
             return float(lane["offset_m"])
         return float(lane.get("offset_px", 0.0)) / 28.0
 
+    def station_platform_lane_indices(self, station):
+        """Return the tracks adjacent to the station platforms in this layout."""
+        configured = station.get("platform_lane_indices")
+        if configured is not None:
+            indices = []
+            for value in configured:
+                try:
+                    index = int(value)
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= index < len(self.lanes) and index not in indices:
+                    indices.append(index)
+            return indices or [self.main_lane]
+
+        layout = str(station.get("platform_layout", "island")).lower()
+        if layout in {"side", "outer"}:
+            return list(range(len(self.lanes)))
+        return [self.main_lane]
+
     def _track_change_blend(self, change, position):
         """Return the transition progress without dividing by a zero-length span."""
         start = float(change["start"])

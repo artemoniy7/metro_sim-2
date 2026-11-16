@@ -78,7 +78,8 @@
       "distance_status": "origin",
       "position_status": "verified_station_chainage",
       "platform_type": "island",
-      "platform_layout": "island"
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/nekrasovka/"
     },
     {
       "id": "station_02",
@@ -93,7 +94,8 @@
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
       "platform_type": "island",
-      "platform_layout": "island"
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/luhmanovskaya/"
     },
     {
       "id": "station_03",
@@ -108,7 +110,8 @@
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
       "platform_type": "island",
-      "platform_layout": "island"
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/ulitsa-dmitrievskogo/"
     },
     {
       "id": "station_04",
@@ -123,7 +126,8 @@
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
       "platform_type": "island",
-      "platform_layout": "island"
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/kosino/"
     },
     {
       "id": "station_05",
@@ -138,7 +142,8 @@
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
       "platform_type": "side",
-      "platform_layout": "side"
+      "platform_layout": "side",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/yugo-vostochnaya/"
     },
     {
       "id": "station_06",
@@ -153,7 +158,8 @@
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
       "platform_type": "side",
-      "platform_layout": "side"
+      "platform_layout": "side",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/okskaya/"
     },
     {
       "id": "station_07",
@@ -168,7 +174,8 @@
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
       "platform_type": "side",
-      "platform_layout": "side"
+      "platform_layout": "side",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/stahanovskaya/"
     },
     {
       "id": "station_08",
@@ -184,7 +191,8 @@
       "position_status": "verified_station_chainage",
       "platform_type": "two_island_platforms",
       "platform_layout": "outer",
-      "platform_layout_note": "В четырёхпутном зале две островные платформы; два пути Некрасовской линии — внутренняя пара. В двухпутной модели платформы отображаются с внешних сторон пары путей."
+      "platform_layout_note": "В четырёхпутном зале две островные платформы; два пути Некрасовской линии — внутренняя пара. В двухпутной модели платформы отображаются с внешних сторон пары путей.",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/nizhegorodskaya/"
     }
   ],
   "signals": [],

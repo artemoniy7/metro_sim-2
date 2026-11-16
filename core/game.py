@@ -18,9 +18,9 @@ class Game:
     def __init__(self, line_file=None, train_file=None, start_position=0.0, end_position=None):
         self.renderer = Renderer()
         self.controls = InputController()
-        line_path = DATA_DIR / "lines" / (line_file or "line_9.json")
+        line_path = DATA_DIR / "lines" / (line_file or "line_15.json")
         self.line_data = load_json(line_path, default={})
-        line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 9)}")
+        line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 15)}")
         local_track_layout = load_json(
             DATA_DIR / "track_layouts" / f"{line_id}.json", default={}
         )

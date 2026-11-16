@@ -76,7 +76,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 0,
       "distance_status": "origin",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "island",
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/nekrasovka/"
     },
     {
       "id": "station_02",
@@ -89,7 +92,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 1887.7,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "island",
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/luhmanovskaya/"
     },
     {
       "id": "station_03",
@@ -102,7 +108,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 1339.52,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "island",
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/ulitsa-dmitrievskogo/"
     },
     {
       "id": "station_04",
@@ -115,7 +124,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 2097.82,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "island",
+      "platform_layout": "island",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/kosino/"
     },
     {
       "id": "station_05",
@@ -128,7 +140,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 2122.34,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "side",
+      "platform_layout": "side",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/yugo-vostochnaya/"
     },
     {
       "id": "station_06",
@@ -141,7 +156,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 2794.97,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "side",
+      "platform_layout": "side",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/okskaya/"
     },
     {
       "id": "station_07",
@@ -154,7 +172,10 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 2075.08,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "side",
+      "platform_layout": "side",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/stahanovskaya/"
     },
     {
       "id": "station_08",
@@ -167,7 +188,11 @@
       "dwell_seconds": 20,
       "distance_from_previous_m": 1547.61,
       "distance_status": "verified_station_chainage_delta",
-      "position_status": "verified_station_chainage"
+      "position_status": "verified_station_chainage",
+      "platform_type": "two_island_platforms",
+      "platform_layout": "outer",
+      "platform_layout_note": "В четырёхпутном зале две островные платформы; два пути Некрасовской линии — внутренняя пара. В двухпутной модели платформы отображаются с внешних сторон пары путей.",
+      "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/nizhegorodskaya/"
     }
   ],
   "signals": [],
@@ -176,6 +201,8 @@
   "platform_length_note": "Максимальная полезная длина пассажирской платформы на линии — 163 м. Длина станционного комплекса у некоторых станций больше и не является длиной платформы.",
   "distance_accuracy": "verified_station_chainage_deltas",
   "line_description": "Действующий участок Некрасовской линии: Некрасовка — Нижегородская.",
-  "available_train_models": ["81-777"],
+  "available_train_models": [
+    "81-777"
+  ],
   "available_train_models_note": "Для линии указаны 81-765.4/766.4/767.4 «Москва-2019», но соответствующая модель пока не реализована в симуляторе. Не подменять её другими поездами."
 }

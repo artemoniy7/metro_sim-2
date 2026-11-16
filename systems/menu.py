@@ -25,6 +25,9 @@ class MainMenu:
         self.line_catalog = self._read_json(DATA / "metro_network.json", {}).get("lines", [])
         self.available_lines = []
         for item in self.line_catalog:
+            # Keep lines 1 and 9 in the data catalog, but hide them from gameplay for now.
+            if item.get("id") in {"line_1", "line_9"}:
+                continue
             path = DATA / "lines" / item.get("file", "")
             if not path.is_file():
                 continue

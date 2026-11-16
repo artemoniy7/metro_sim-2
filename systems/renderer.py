@@ -579,53 +579,65 @@ class Renderer:
                     pygame.draw.rect(surface, (70, 64, 56),
                                      (sx, track_y - 4, strip_width, 18))
                 elif station_index is not None:
+                    station = line.stations[station_index]
                     station_height = max(4, round((8.5 * scale) / 4.0) * 4)
                     station_bottom_extra = max(1, round(0.25 * scale))
-                    station_wall_top = self._station_wall_top(
-                        track_y, station_height, station_bottom_extra
-                    )
                     station_texture = self.station_images.get(
                         station_index, self.legacy_station_image
                     )
-                    if station_texture is not None:
-                        station_width = max(1, round(
-                            station_height * station_texture.get_width()
-                            / station_texture.get_height()
-                        ))
-                        station_key = (id(station_texture), station_width, station_height)
-                        if station_key not in self._station_tile_cache:
-                            self._station_tile_cache[station_key] = pygame.transform.smoothscale(
-                                station_texture, (station_width, station_height)
-                            )
-                            if len(self._station_tile_cache) > 128:
-                                self._station_tile_cache.pop(next(iter(self._station_tile_cache)))
-                        station_tile = self._station_tile_cache[station_key]
-                        tile_world_width = station_width / scale
-                        tile_x = int(((world_x % tile_world_width) / tile_world_width) * station_width)
-                        src_x = min(station_width - 1, max(0, tile_x))
-                        slice_width = min(strip_width, station_width - src_x)
-                        if slice_width > 0:
-                            station_slice = station_tile.subsurface(
-                                (src_x, 0, slice_width, station_height)
-                            )
-                            surface.blit(
-                                station_slice,
-                                (sx, station_wall_top)
-                            )
-                        if slice_width < strip_width:
-                            extra_width = min(strip_width - slice_width, station_width)
-                            station_slice = station_tile.subsurface(
-                                (0, 0, extra_width, station_height)
-                            )
-                            surface.blit(
-                                station_slice,
-                                (sx + slice_width, station_wall_top)
-                            )
-                    else:
-                        pygame.draw.rect(
-                            surface, (142, 24, 34),
-                            (sx, station_wall_top, strip_width, station_height + 20)
+                    platform_track_ys = [track_y]
+                    if track_network is not None:
+                        lane_indices = track_network.station_platform_lane_indices(station)
+                        if station.get("platform_layout") in {"side", "outer"}:
+                            platform_track_ys = [
+                                track_y + self._lane_offset_pixels(
+                                    track_network.lanes[lane_index], scale
+                                )
+                                for lane_index in lane_indices
+                            ] or [track_y]
+
+                    # Island platforms keep the original single station sprite.
+                    # Side/outer layouts place a copy beside each simulated track.
+                    for platform_track_y in platform_track_ys:
+                        station_wall_top = self._station_wall_top(
+                            platform_track_y, station_height, station_bottom_extra
                         )
+                        if station_texture is not None:
+                            station_width = max(1, round(
+                                station_height * station_texture.get_width()
+                                / station_texture.get_height()
+                            ))
+                            station_key = (id(station_texture), station_width, station_height)
+                            if station_key not in self._station_tile_cache:
+                                self._station_tile_cache[station_key] = pygame.transform.smoothscale(
+                                    station_texture, (station_width, station_height)
+                                )
+                                if len(self._station_tile_cache) > 128:
+                                    self._station_tile_cache.pop(next(iter(self._station_tile_cache)))
+                            station_tile = self._station_tile_cache[station_key]
+                            tile_world_width = station_width / scale
+                            tile_x = int(((world_x % tile_world_width) / tile_world_width) * station_width)
+                            src_x = min(station_width - 1, max(0, tile_x))
+                            slice_width = min(strip_width, station_width - src_x)
+                            if slice_width > 0:
+                                station_slice = station_tile.subsurface(
+                                    (src_x, 0, slice_width, station_height)
+                                )
+                                surface.blit(station_slice, (sx, station_wall_top))
+                            if slice_width < strip_width:
+                                extra_width = min(strip_width - slice_width, station_width)
+                                station_slice = station_tile.subsurface(
+                                    (0, 0, extra_width, station_height)
+                                )
+                                surface.blit(
+                                    station_slice,
+                                    (sx + slice_width, station_wall_top)
+                                )
+                        else:
+                            pygame.draw.rect(
+                                surface, (142, 24, 34),
+                                (sx, station_wall_top, strip_width, station_height + 20)
+                            )
                 else:
                     src_x = int((world_x * scale) % tunnel_width)
                     src_x = min(tunnel_width - 1, max(0, src_x))

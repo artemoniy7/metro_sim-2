@@ -65,6 +65,7 @@ class FullLineRouteTests(unittest.TestCase):
         game.line = SimpleNamespace(
             traffic_trains=[],
             path=SimpleNamespace(total_length=1000.0),
+            opposing_signals=[],
             update_signals=Mock(),
         )
         game.track_network = SimpleNamespace(update_train=Mock())

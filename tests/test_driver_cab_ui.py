@@ -21,11 +21,11 @@ class DriverCabUITests(unittest.TestCase):
 
     def test_route_drawer_tabs_toggle_open_and_closed(self):
         ui = DriverCabUI()
-        ui.buttons["tab_motion"] = pygame.Rect(10, 10, 100, 40)
+        ui.buttons["tab_motion"] = pygame.Rect(10, 10, 48, 48)
         train = SimpleNamespace(controller_notch=0)
 
         event = pygame.event.Event(
-            pygame.MOUSEBUTTONDOWN, button=1, pos=(20, 20)
+            pygame.MOUSEBUTTONDOWN, button=1, pos=(34, 34)
         )
         ui.handle_event(event, train)
         self.assertEqual(ui.drawer, "motion")

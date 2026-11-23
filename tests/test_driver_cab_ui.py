@@ -77,6 +77,18 @@ class DriverCabUITests(unittest.TestCase):
             ],
         )
 
+    def test_reverser_selector_maps_top_middle_and_bottom(self):
+        rect = pygame.Rect(20, 100, 220, 180)
+        self.assertEqual(DriverCabUI._reverser_position_from_y(110, rect), 1)
+        self.assertEqual(DriverCabUI._reverser_position_from_y(190, rect), 0)
+        self.assertEqual(DriverCabUI._reverser_position_from_y(265, rect), -1)
+
+    def test_speedometer_marks_current_limit_red_and_next_block_yellow(self):
+        self.assertEqual(DriverCabUI._speed_band_color(65, 60, 40), (214, 65, 62))
+        self.assertEqual(DriverCabUI._speed_band_color(50, 60, 40), (221, 177, 60))
+        self.assertEqual(DriverCabUI._speed_band_color(30, 60, 40), (128, 140, 145))
+        self.assertEqual(DriverCabUI._speed_band_color(50, 40, 60), (214, 65, 62))
+
     def test_route_drawer_tabs_toggle_open_and_closed(self):
         ui = DriverCabUI()
         ui.buttons["tab_motion"] = pygame.Rect(10, 10, 48, 48)

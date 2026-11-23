@@ -133,6 +133,18 @@ class Game:
         if selector:
             self.train.direction = selector * cab_sign
 
+    def _set_reverser_position(self, selector):
+        selector = max(-1, min(1, int(selector)))
+        cab_sign = 1 if self.train.active_cab == 0 else -1
+        requested_direction = selector * cab_sign
+        # Neutral is always available; changing direction requires a stop.
+        if selector != 0 and abs(self.train.speed) >= 0.05 and requested_direction != self.train.direction:
+            return False
+        self.train.reverser_position = selector
+        if selector != 0:
+            self.train.direction = requested_direction
+        return True
+
     def _open_selected_doors(self, side):
         if self.selected_door_side != side:
             return
@@ -163,7 +175,9 @@ class Game:
         cab_ui = getattr(self, "cab_ui", None)
         ui_action = cab_ui.handle_event(event, self.train) if cab_ui is not None else False
         if isinstance(ui_action, dict):
-            if "door_side" in ui_action:
+            if "reverser_position" in ui_action:
+                self._set_reverser_position(ui_action["reverser_position"])
+            elif "door_side" in ui_action:
                 self.selected_door_side = ui_action["door_side"]
             elif "open_doors" in ui_action:
                 self._open_selected_doors(ui_action["open_doors"])

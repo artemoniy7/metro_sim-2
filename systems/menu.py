@@ -164,7 +164,7 @@ class MainMenu:
                 # Every run continues to the line terminus.
                 index = int(key.split("_")[1])
                 station_count = len(self.selected_line[2].get("stations", []))
-                if 0 <= index < station_count:
+                if 0 <= index < station_count - 1:
                     self.start_index = index
             elif key == "start_prev":
                 self.start_index = max(0, self.start_index - 1)

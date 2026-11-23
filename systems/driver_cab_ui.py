@@ -26,6 +26,7 @@ class DriverCabUI:
         self.drawer = None
         self.buttons = {}
         self.dragging_lever = False
+        self.dragging_reverser = False
         self.pressed_button = None
         self.door_flash = 0.0
         self._next_restriction = None
@@ -57,7 +58,7 @@ class DriverCabUI:
         surface.blit(text, text.get_rect(center=rect.center))
 
     def _button_hit(self, key, rect, pos):
-        if key in ("lever", "announcement_up", "announcement_down") or key.startswith("announcement_item_"):
+        if key in ("lever", "reverser_selector", "announcement_up", "announcement_down") or key.startswith("announcement_item_"):
             return rect.collidepoint(pos)
         radius = min(rect.width, rect.height) // 2
         dx, dy = pos[0] - rect.centerx, pos[1] - rect.centery
@@ -66,8 +67,13 @@ class DriverCabUI:
     def handle_event(self, event, train):
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self.dragging_lever = False
+            self.dragging_reverser = False
             self.pressed_button = None
             return True
+        if event.type == pygame.MOUSEMOTION and self.dragging_reverser and self.drawer == "speed":
+            rect = self.buttons.get("reverser_selector")
+            if rect is not None:
+                return {"reverser_position": self._reverser_position_from_y(event.pos[1], rect)}
         if event.type == pygame.MOUSEMOTION and self.dragging_lever and self.drawer == "motion":
             self._set_notch_from_y(event.pos[1], train)
             return True
@@ -86,6 +92,9 @@ class DriverCabUI:
             if key.startswith("tab_"):
                 name = key[4:]
                 self.drawer = None if self.drawer == name else name
+            elif key == "reverser_selector":
+                self.dragging_reverser = True
+                return {"reverser_position": self._reverser_position_from_y(event.pos[1], rect)}
             elif key == "left_side":
                 return {"door_side": "left"}
             elif key == "right_side":
@@ -130,6 +139,23 @@ class DriverCabUI:
         elif self.announcement_index >= self.announcement_scroll + visible_rows:
             self.announcement_scroll = self.announcement_index - visible_rows + 1
 
+    @staticmethod
+    def _reverser_position_from_y(y, rect):
+        relative = (y - rect.top) / max(1, rect.height)
+        if relative < 1.0 / 3.0:
+            return 1
+        if relative > 2.0 / 3.0:
+            return -1
+        return 0
+
+    @staticmethod
+    def _speed_band_color(value, current_limit, future_limit):
+        if value > current_limit + 0.1:
+            return (214, 65, 62)
+        if future_limit < current_limit - 0.1 and value > future_limit + 0.1:
+            return (221, 177, 60)
+        return (128, 140, 145)
+
     def _set_notch_from_y(self, y, train):
         rect = self.buttons.get("lever_track")
         if rect is None:
@@ -166,6 +192,7 @@ class DriverCabUI:
             samples.append((float(distance), limit))
         train.als.indication_kmh = saved_indication
         train.als.free_blocks_ahead = saved_blocks
+        self._current_route_limit_kmh = current_limit
 
         limit_text = pygame.font.SysFont("arial", 32, bold=True).render(
             str(round(current_limit)), True, (230, 202, 104)

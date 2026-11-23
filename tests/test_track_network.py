@@ -37,12 +37,16 @@ class TrackNetworkTests(unittest.TestCase):
             ],
         })
 
-    def test_track_geometry_and_switch_positions_are_preserved(self):
+    def test_track_geometry_does_not_generate_automatic_crossovers(self):
         self.assertEqual(len(self.network.lanes), 2)
         self.assertAlmostEqual(self.network.lane_offset_for_index(0), -3.43)
         self.assertAlmostEqual(self.network.lane_offset_for_index(1), 0.0)
-        self.assertTrue(self.network.switches)
-        self.assertEqual(self.network.switches[0]["position"], 900)
+        self.assertEqual(self.network.switches, [])
+
+    def test_explicit_switches_are_preserved(self):
+        configured = [{"id": "manual", "position": 900}]
+        network = TrackNetwork(FakeLine(), {"switches": configured})
+        self.assertEqual(network.switches, configured)
 
     def test_local_track_segments_and_switch_metadata_are_preserved(self):
         layout = {
@@ -72,10 +76,7 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertFalse(self.network.request_lane_change(train, -1, [train]))
         self.assertIsNone(train.track_change)
         self.assertEqual(train.track_index, 1)
-        self.assertEqual(
-            self.network.last_message,
-            "Переключение путей временно отключено",
-        )
+        self.assertEqual(self.network.last_message, "Впереди нет доступной стрелки")
 
     def test_update_does_not_apply_or_continue_legacy_transition(self):
         train = FakeTrain()

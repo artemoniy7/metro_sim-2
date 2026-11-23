@@ -8,15 +8,6 @@ from systems.driver_cab_ui import DriverCabUI
 
 
 class DriverCabUITests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        pygame.init()
-        pygame.display.set_mode((1, 1))
-
-    @classmethod
-    def tearDownClass(cls):
-        pygame.quit()
-
     def test_vertical_lever_maps_top_to_maximum_traction_and_bottom_to_brake(self):
         ui = DriverCabUI()
         ui.buttons["lever_track"] = pygame.Rect(40, 100, 12, 180)

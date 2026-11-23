@@ -18,6 +18,7 @@ class InputControllerTests(unittest.TestCase):
             overspeed_emergency_active=False,
             overspeed_timer=2.0,
             manual_emergency_brake_active=False,
+            current_speed_limit_mps=0.0,
         )
 
     def press(self, key, mod=0):
@@ -59,6 +60,21 @@ class InputControllerTests(unittest.TestCase):
         for _ in range(5):
             self.press(pygame.K_o)
         self.assertEqual(self.train.reverser_position, -1)
+
+    def test_overspeed_reset_works_when_restriction_has_cleared(self):
+        self.train.overspeed_emergency_active = True
+        self.train.overspeed_timer = 4.0
+        self.train.controller_notch = 0
+        self.train.current_speed_limit_mps = 12.0
+        self.press(pygame.K_b)
+        self.assertFalse(self.train.overspeed_emergency_active)
+        self.assertEqual(self.train.overspeed_timer, 0.0)
+
+    def test_overspeed_reset_is_blocked_while_speed_limit_is_zero(self):
+        self.train.overspeed_emergency_active = True
+        self.train.current_speed_limit_mps = 0.0
+        self.press(pygame.K_b)
+        self.assertTrue(self.train.overspeed_emergency_active)
 
     def test_parking_brake_is_preserved_on_k(self):
         self.press(pygame.K_k)

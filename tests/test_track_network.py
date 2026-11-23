@@ -71,7 +71,7 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertEqual(outer, [0, 1])
         self.assertEqual(island, [1])
 
-    def test_station_keeps_two_distinct_tracks_and_preserves_spacing(self):
+    def test_station_tracks_converge_as_a_pair_without_collapsing(self):
         line = FakeLine()
         line.stations = [{
             "name": "Юго-Восточная", "position": 5000, "length_m": 160,
@@ -83,17 +83,25 @@ class TrackNetworkTests(unittest.TestCase):
             {"id": "main", "offset_m": 0.0},
         ]})
 
-        # Both lanes remain separate before, inside, and after the station.
-        for position in (4800, 4920, 5000, 5080, 5200):
-            first = network.station_lane_offset_m(4.0, position)
-            second = network.station_lane_offset_m(0.0, position)
-            self.assertAlmostEqual(first - second, 4.0)
-            self.assertNotAlmostEqual(first, second)
+        # Outside the approach, the original track positions are unchanged.
+        self.assertAlmostEqual(network.station_lane_offset_m(4.0, 4800), 4.0)
+        self.assertAlmostEqual(network.station_lane_offset_m(0.0, 4800), 0.0)
+        self.assertAlmostEqual(network.station_lane_offset_m(4.0, 5200), 4.0)
+        self.assertAlmostEqual(network.station_lane_offset_m(0.0, 5200), 0.0)
 
-        # The renderer aligns the pair's midpoint with the station centreline;
-        # this method must not collapse both tracks onto that midpoint.
-        self.assertAlmostEqual(network.station_lane_offset_m(4.0, 5000), 4.0)
-        self.assertAlmostEqual(network.station_lane_offset_m(0.0, 5000), 0.0)
+        # On the station, the pair is centred symmetrically around the axis.
+        first = network.station_lane_offset_m(4.0, 5000)
+        second = network.station_lane_offset_m(0.0, 5000)
+        self.assertAlmostEqual(first, 2.0)
+        self.assertAlmostEqual(second, -2.0)
+        self.assertAlmostEqual(first - second, 4.0)
+
+        # At the transition, both tracks move by the same smooth amount.
+        first_approach = network.station_lane_offset_m(4.0, 4860)
+        second_approach = network.station_lane_offset_m(0.0, 4860)
+        self.assertGreater(first_approach, 2.0)
+        self.assertLess(second_approach, 0.0)
+        self.assertAlmostEqual(first_approach - second_approach, 4.0)
 
     def test_center_convergence_is_only_used_for_side_platform_stations(self):
         line = FakeLine()

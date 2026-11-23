@@ -48,14 +48,41 @@ class TrackNetwork:
             return float(lane["offset_m"])
         return float(lane.get("offset_px", 0.0)) / 28.0
 
-    def station_lane_offset_m(self, offset_m, position):
-        """Keep each track's own offset; the station shell shifts the pair as a unit.
+    def station_track_center_blend(self, position):
+        """Blend the track pair toward the station centre over a smooth approach."""
+        position = float(position)
+        blend = 0.0
+        for station in self.line.stations:
+            if not station.get("tracks_converge"):
+                continue
+            if str(station.get("platform_layout", "")).lower() not in {"side", "outer"}:
+                continue
+            half_length = max(0.0, float(station.get("length_m", 162.0)) / 2.0)
+            transition = max(1.0, float(station.get("track_center_transition_m", 100.0)))
+            distance = abs(position - float(station.get("position", 0.0)))
+            if distance <= half_length:
+                station_blend = 1.0
+            elif distance < half_length + transition:
+                station_blend = 1.0 - self._smoothstep((distance - half_length) / transition)
+            else:
+                station_blend = 0.0
+            blend = max(blend, station_blend)
+        return blend
 
-        The two tracks must stay parallel and physically separate through the
-        station. Their shared centre is aligned by station_shell_y_at() in the
-        renderer; collapsing each lane onto the midpoint would draw one track.
+    def station_lane_offset_m(self, offset_m, position):
+        """Move both lanes together so their midpoint reaches the station axis.
+
+        The shift is shared by every lane, preserving the physical distance
+        between the two tracks instead of collapsing them onto one line.
         """
-        return float(offset_m)
+        if not self.lanes:
+            return float(offset_m)
+        centre = sum(
+            self.lane_offset_for_index(i) for i in range(len(self.lanes))
+        ) / len(self.lanes)
+        main = self.lane_offset_for_index(self.main_lane)
+        blend = self.station_track_center_blend(position)
+        return float(offset_m) + (main - centre) * blend
 
     def station_platform_lane_indices(self, station):
         """Return the tracks adjacent to the station platforms in this layout."""

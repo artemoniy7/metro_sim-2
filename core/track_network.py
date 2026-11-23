@@ -167,6 +167,15 @@ class TrackNetwork:
         """Lock the chosen route at entry and release its zone after the tail clears exit."""
         leading, trailing = self._train_edges(train)
         travel = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
+        if not self.local_switches:
+            # A legacy or stale transition must not keep shifting a train when
+            # this route has no explicitly configured junctions.
+            train.track_change = None
+            train._junction_active_zones = []
+            train._junction_route_state = None
+            train._junction_previous_edges = (leading, trailing)
+            train._junction_previous_direction = travel
+            return
         previous = getattr(train, "_junction_previous_edges", (None, None))
         prev_lead, prev_tail = previous
         previous_direction = getattr(train, "_junction_previous_direction", travel)

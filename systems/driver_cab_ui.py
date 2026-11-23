@@ -106,12 +106,12 @@ class DriverCabUI:
                     self._keep_announcement_visible()
                     return {"play_announcement": item}
             elif key == "announcement_up":
-                self.announcement_scroll = max(0, self.announcement_scroll - 1)
+                self.announcement_index = max(0, self.announcement_index - 1)
                 self._keep_announcement_visible()
             elif key == "announcement_down":
-                self.announcement_scroll = min(
+                self.announcement_index = min(
                     max(0, len(self.announcement_items) - 1),
-                    self.announcement_scroll + 1,
+                    self.announcement_index + 1,
                 )
                 self._keep_announcement_visible()
             elif key.startswith("announcement_item_"):
@@ -146,9 +146,7 @@ class DriverCabUI:
         top_y, card_h = 16, 88
         limit_width, gap = 72, 12
         map_width = max(240, min((width - 132) // 2, width - 122))
-        group_width = limit_width + gap + map_width
-        group_x = (width - group_width) // 2
-        limit_box = pygame.Rect(group_x, top_y, limit_width, card_h)
+        limit_box = pygame.Rect(18, top_y, limit_width, card_h)
         pygame.draw.rect(surface, (22, 30, 36), limit_box, border_radius=12)
         pygame.draw.rect(surface, (73, 88, 94), limit_box, 1, border_radius=12)
         self._text(surface, "ЛИМИТ", (limit_box.x + 12, limit_box.y + 12), self.MUTED, self.tiny)
@@ -174,7 +172,7 @@ class DriverCabUI:
         )
         surface.blit(limit_text, limit_text.get_rect(center=(limit_box.centerx, limit_box.y + 52)))
 
-        box = pygame.Rect(limit_box.right + gap, top_y, map_width, card_h)
+        box = pygame.Rect((width - map_width) // 2, top_y, map_width, card_h)
         pygame.draw.rect(surface, (22, 30, 36), box, border_radius=12)
         pygame.draw.rect(surface, (73, 88, 94), box, 1, border_radius=12)
         self._text(surface, "ПУТЬ ВПЕРЁДИ", (box.x + 14, box.y + 8), self.MUTED, self.tiny)

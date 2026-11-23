@@ -146,7 +146,8 @@ class Game:
                 play_door_sound()
 
     def handle_event(self, event):
-        ui_action = self.cab_ui.handle_event(event, self.train)
+        cab_ui = getattr(self, "cab_ui", None)
+        ui_action = cab_ui.handle_event(event, self.train) if cab_ui is not None else False
         if isinstance(ui_action, dict):
             if "door_side" in ui_action:
                 self.selected_door_side = ui_action["door_side"]
@@ -219,7 +220,9 @@ class Game:
 
     def update(self, dt):
         self.elapsed += dt
-        self.cab_ui.update(dt)
+        cab_ui = getattr(self, "cab_ui", None)
+        if cab_ui is not None:
+            cab_ui.update(dt)
         self.controls.update(self.train, dt)
         # Do not retain a traction command while the doors are open.
         if self.doors_open and self.train.controller_notch > 0:
@@ -317,7 +320,9 @@ class Game:
             track_network=self.track_network,
             draw_hud=False,
         )
-        self.cab_ui.render(surface, self.line, self.train, self)
+        cab_ui = getattr(self, "cab_ui", None)
+        if cab_ui is not None:
+            cab_ui.render(surface, self.line, self.train, self)
         if not self.doors_open and self.renderer.door_open_amount <= 0.0:
             stop_door_ring = getattr(self.audio, "stop_door_ring", None)
             if callable(stop_door_ring):

@@ -69,20 +69,45 @@ class TrackNetwork:
             blend = max(blend, station_blend)
         return blend
 
-    def station_lane_offset_m(self, offset_m, position):
-        """Move both lanes together so their midpoint reaches the station axis.
+    def station_track_center_spacing(self, position):
+        """Return the configured minimum spacing for a converging station pair."""
+        spacing = None
+        position = float(position)
+        for station in self.line.stations:
+            if not station.get("tracks_converge"):
+                continue
+            if str(station.get("platform_layout", "")).lower() not in {"side", "outer"}:
+                continue
+            distance = abs(position - float(station.get("position", 0.0)))
+            half_length = max(0.0, float(station.get("length_m", 162.0)) / 2.0)
+            transition = max(1.0, float(station.get("track_center_transition_m", 100.0)))
+            if distance <= half_length + transition:
+                configured = station.get("track_center_spacing_m")
+                if configured is not None:
+                    spacing = max(0.1, float(configured))
+        return spacing
 
-        The shift is shared by every lane, preserving the physical distance
-        between the two tracks instead of collapsing them onto one line.
+    def station_lane_offset_m(self, offset_m, position):
+        """Move each lane toward the pair midpoint from its own side.
+
+        Unlike a shared translation, this contracts the distance between the
+        tracks symmetrically. The configured minimum spacing keeps both paths
+        visibly separate throughout the station and smooth transitions.
         """
         if not self.lanes:
             return float(offset_m)
-        centre = sum(
-            self.lane_offset_for_index(i) for i in range(len(self.lanes))
-        ) / len(self.lanes)
-        main = self.lane_offset_for_index(self.main_lane)
+        offsets = [self.lane_offset_for_index(i) for i in range(len(self.lanes))]
+        centre = sum(offsets) / len(offsets)
+        current_spacing = max(offsets) - min(offsets)
+        target_spacing = self.station_track_center_spacing(position)
+        if current_spacing <= 1e-9 or target_spacing is None:
+            return float(offset_m)
+
+        target_spacing = min(current_spacing, target_spacing)
+        target_scale = target_spacing / current_spacing
         blend = self.station_track_center_blend(position)
-        return float(offset_m) + (main - centre) * blend
+        scale = 1.0 - (1.0 - target_scale) * blend
+        return centre + (float(offset_m) - centre) * scale
 
     def station_platform_lane_indices(self, station):
         """Return the tracks adjacent to the station platforms in this layout."""

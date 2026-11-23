@@ -144,8 +144,8 @@
       "platform_type": "side",
       "platform_layout": "side",
       "tracks_converge": true,
-      "track_center_transition_m": 100,
-      "platform_layout_note": "Две боковые платформы; оба пути смещаются как пара относительно оси станции, сохраняя междупутье и оставаясь двумя отдельными путями.",
+      "track_center_transition_m": 100,\n      "track_center_spacing_m": 2.0,
+      "platform_layout_note": "Две боковые платформы; пути плавно сближаются симметрично с противоположных сторон, сохраняя минимальное расстояние 2 м и оставаясь двумя отдельными путями.",
       "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/yugo-vostochnaya/"
     },
     {

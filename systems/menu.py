@@ -49,7 +49,6 @@ class MainMenu:
         self.line_index = 0
         self.train_index = 0
         self.start_index = 0
-        self.end_index = 1
         self.difficulty = "Обычный"
         self.settings_open = False
         self.volume = 70
@@ -159,28 +158,18 @@ class MainMenu:
                 if index < len(self.available_lines):
                     self.line_index = index
                     self.start_index = 0
-                    self.end_index = max(1, len(self.selected_line[2].get("stations", [])) - 1)
                     self.train_index = 0
             elif key.startswith("station_"):
+                # A station click chooses only where the run begins.
+                # Every run continues to the line terminus.
                 index = int(key.split("_")[1])
-                if index == self.start_index:
-                    pass
-                elif index == self.end_index:
-                    pass
-                elif index < self.end_index:
+                station_count = len(self.selected_line[2].get("stations", []))
+                if 0 <= index < station_count - 1:
                     self.start_index = index
-                else:
-                    self.end_index = index
             elif key == "start_prev":
                 self.start_index = max(0, self.start_index - 1)
-                if self.end_index <= self.start_index:
-                    self.end_index = min(len(self.selected_line[2]["stations"]) - 1, self.start_index + 1)
             elif key == "start_next":
                 self.start_index = min(len(self.selected_line[2]["stations"]) - 2, self.start_index + 1)
-            elif key == "end_prev":
-                self.end_index = max(self.start_index + 1, self.end_index - 1)
-            elif key == "end_next":
-                self.end_index = min(len(self.selected_line[2]["stations"]) - 1, self.end_index + 1)
             elif key.startswith("train_"):
                 index = int(key.split("_")[1])
                 if index < len(self.available_train_options):
@@ -265,17 +254,14 @@ class MainMenu:
         stations = line.get("stations", [])
         if not stations:
             return
-        self._text(surface, "2. Начало и конец маршрута", self.body, self.MUTED, (int(w*.055), 280))
+        self._text(surface, "2. Начальная станция", self.body, self.MUTED, (int(w*.055), 280))
         start = stations[self.start_index]
-        end = stations[self.end_index]
         self._text(surface, "ОТ", self.small, self.MUTED, (int(w*.055), 318))
         self._text(surface, start.get("name", ""), self.button_font, self.TEXT, (int(w*.055), 340))
         self._button(surface, "start_prev", "‹", pygame.Rect(int(w*.055), 371, 42, 34))
         self._button(surface, "start_next", "›", pygame.Rect(int(w*.055)+50, 371, 42, 34))
-        self._text(surface, "ДО", self.small, self.MUTED, (int(w*.34), 318))
-        self._text(surface, end.get("name", ""), self.button_font, self.TEXT, (int(w*.34), 340))
-        self._button(surface, "end_prev", "‹", pygame.Rect(int(w*.34), 371, 42, 34))
-        self._button(surface, "end_next", "›", pygame.Rect(int(w*.34)+50, 371, 42, 34))
+        self._text(surface, "ДО КОНЕЧНОЙ СТАНЦИИ ЛИНИИ", self.small, self.MUTED,
+                   (int(w*.34), 347))
         # Simple route strip, as in the original setup screen.
         map_rect = pygame.Rect(int(w*.055), 425, int(w*.89), 56)
         pygame.draw.rect(surface, (19, 26, 35), map_rect, border_radius=8)
@@ -285,17 +271,17 @@ class MainMenu:
         pygame.draw.line(surface, color, (left, cy), (right, cy), 5)
         for i, station in enumerate(stations):
             px = left + int((right-left) * i / max(1, len(stations)-1))
-            active = self.start_index <= i <= self.end_index
+            active = i >= self.start_index
             pygame.draw.circle(surface, color if active else (83, 94, 108),
                                (px, cy), 5 if active else 3)
-            if i in (self.start_index, self.end_index):
+            if i == self.start_index:
                 pygame.draw.circle(surface, self.TEXT, (px, cy), 9, 2)
             self._add_button(f"station_{i}", pygame.Rect(px-10, cy-10, 20, 20))
-            if i in (0, len(stations)-1, self.start_index, self.end_index):
+            if i in (0, len(stations)-1, self.start_index):
                 label = self.small.render(station.get("name", ""), True, self.TEXT)
                 surface.blit(label, (max(map_rect.x, min(px-label.get_width()//2,
                              map_rect.right-label.get_width())), map_rect.y+4))
-        self._text(surface, f'{len(stations)} станций  •  нажми на точку, чтобы выбрать станцию',
+        self._text(surface, f'{len(stations)} станций  •  выбери начальную станцию, поезд едет до конечной',
                    self.small, self.MUTED, (map_rect.x+8, map_rect.bottom+4))
         self._text(surface, "3. Выбери поезд", self.body, self.MUTED, (int(w*.055), 505))
         train_y = 535

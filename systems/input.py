@@ -99,9 +99,16 @@ class InputController:
             elif self.matches(event, "parking_brake"):
                 train.parking_brake_active = not train.parking_brake_active
             elif self.matches(event, "reset_overspeed"):
-                if abs(train.speed) < 0.05 and train.controller_notch == -3:
+                # A latched overspeed trip may remain after a temporary red
+                # signal or restrictive block clears. Allow reset at standstill
+                # once the current permitted speed is positive; no brake-notch
+                # combination should be required from the driver.
+                permitted_speed = float(getattr(train, "current_speed_limit_mps", 0.0))
+                if abs(train.speed) < 0.05 and permitted_speed > 0.0:
                     train.overspeed_emergency_active = False
                     train.overspeed_timer = 0.0
+                    if train.controller_notch < 0:
+                        train.controller_notch = 0
         elif event.type == pygame.KEYUP:
             emergency_key = self.keybinds.get("emergency_brake", "space").split("+")[-1]
             try:

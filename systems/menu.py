@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 import pygame
+from core.train_models.oka import profile as oka_profile
+from core.train_models.moscow_2020 import profile as moscow_2020_profile
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -58,22 +60,18 @@ class MainMenu:
         self.button_font = self._font(font_dir / "IBMPlexSans-Medium.ttf", 18)
         self.small = self._font(font_dir / "IBMPlexSans-Regular.ttf", 14)
         self.sprites = {}
+        # Reuse the same model profiles and exact sprite filenames as the
+        # in-game renderer. Door assets use hyphens (door-left/right), not
+        # underscores; constructing filenames from the logical keys silently
+        # skipped both door sprites in the previous menu implementation.
         self.preview_door_profiles = {
-            "81-760": {
-                "loco_openings": ((373, 81, 553, 322), (939, 81, 1119, 322),
-                                  (1433, 81, 1613, 322), (1897, 81, 2077, 322)),
-                "door_sizes": ((91, 225), (90, 225)),
-            },
-            "81-777": {
-                "loco_openings": ((362, 80, 560, 304), (832, 80, 1030, 304),
-                                  (1314, 80, 1512, 304), (1785, 80, 1983, 304)),
-                "door_sizes": ((88, 225), (87, 225)),
-            },
+            "81-760": oka_profile,
+            "81-777": moscow_2020_profile,
         }
-        for model in ("81-760", "81-777"):
-            folder = ASSETS / "trains" / model
-            for kind in ("loco", "car", "door_left", "door_right"):
-                p = folder / f"{model}-{kind}.png"
+        for model, profile in self.preview_door_profiles.items():
+            folder = ASSETS / "trains" / profile.ASSET_DIRECTORY
+            for kind, filename in profile.SPRITE_FILES.items():
+                p = folder / filename
                 if p.is_file():
                     try:
                         self.sprites[(model, kind)] = pygame.image.load(str(p)).convert_alpha()
@@ -352,14 +350,19 @@ class MainMenu:
         if profile and left_door and right_door:
             sx = scaled_width / image.get_width()
             sy = scaled_height / image.get_height()
-            left_source_size, right_source_size = profile["door_sizes"]
+            left_source_size = getattr(profile, "DOOR_LEFT_SIZE", (91, 225))
+            right_source_size = getattr(profile, "DOOR_RIGHT_SIZE", (90, 225))
             left_size = (max(1, round(left_source_size[0] * sx)),
                          max(1, round(left_source_size[1] * sy)))
             right_size = (max(1, round(right_source_size[0] * sx)),
                           max(1, round(right_source_size[1] * sy)))
             left_scaled = pygame.transform.smoothscale(left_door, left_size)
             right_scaled = pygame.transform.smoothscale(right_door, right_size)
-            for x1, y1, x2, _ in profile["loco_openings"]:
+            openings = getattr(profile, "LOCO_DOOR_OPENINGS", (
+                (373, 81, 553, 322), (939, 81, 1119, 322),
+                (1433, 81, 1613, 322), (1897, 81, 2077, 322),
+            ))
+            for x1, y1, x2, _ in openings:
                 surface.blit(left_scaled, (
                     draw_x + round(x1 * sx), draw_y + round(y1 * sy)
                 ))

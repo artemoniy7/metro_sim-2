@@ -290,8 +290,15 @@ class DriverCabUI:
                 items.append({"station_number": index, "kind": "current",
                               "label": station_name})
             if "next" in available:
+                # st_NN_next announces station NN as the upcoming stop.
+                # When departing, the station named in the label is therefore
+                # the previous station in the route sequence (NN - 1).
+                departure_name = (
+                    str(line.stations[index - 2].get("name", f"Станция {index - 1}"))
+                    if index > 1 else "Начальная станция"
+                )
                 items.append({"station_number": index, "kind": "next",
-                              "label": f"{station_name} отпр."})
+                              "label": f"{departure_name} — отпр."})
         self.announcement_items = items
         if items:
             self.announcement_index = max(0, min(self.announcement_index, len(items) - 1))

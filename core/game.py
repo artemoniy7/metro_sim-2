@@ -145,6 +145,20 @@ class Game:
             if callable(play_door_sound):
                 play_door_sound()
 
+    def _reset_emergency_brakes(self):
+        """Reset a latched overspeed emergency after the train has stopped."""
+        if abs(self.train.speed) >= 0.05:
+            return False
+        permitted_speed = float(getattr(self.train, "current_speed_limit_mps", 0.0))
+        if permitted_speed <= 0.0:
+            return False
+        self.train.overspeed_emergency_active = False
+        self.train.overspeed_timer = 0.0
+        self.train.manual_emergency_brake_active = bool(self.controls.emergency)
+        if self.train.controller_notch < 0:
+            self.train.controller_notch = 0
+        return True
+
     def handle_event(self, event):
         cab_ui = getattr(self, "cab_ui", None)
         ui_action = cab_ui.handle_event(event, self.train) if cab_ui is not None else False
@@ -160,6 +174,13 @@ class Game:
                     play_door_sound = getattr(self.audio, "play_door_sound", None)
                     if callable(play_door_sound):
                         play_door_sound()
+            elif ui_action.get("reset_emergency"):
+                self._reset_emergency_brakes()
+            elif "play_announcement" in ui_action:
+                item = ui_action["play_announcement"]
+                play_announcement = getattr(self.audio, "play_station_announcement", None)
+                if callable(play_announcement):
+                    play_announcement(item["station_number"], item["kind"])
             return
         if ui_action:
             return

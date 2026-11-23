@@ -31,7 +31,7 @@ class MenuPreviewAndStationLayoutTests(unittest.TestCase):
         )
         self.assertEqual(station["platform_type"], "side")
         self.assertEqual(station["platform_layout"], "side")
-        self.assertAlmostEqual(station["track_center_offset_m"], 1.7)
+        self.assertTrue(station["tracks_converge"])
         self.assertEqual(station["track_center_transition_m"], 100)
 
 

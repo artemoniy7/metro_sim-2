@@ -172,10 +172,7 @@ class DriverCabUI:
         top_y, card_h = 16, 88
         limit_width, gap = 72, 12
         map_width = max(240, min((width - 132) // 2, width - 122))
-        limit_box = pygame.Rect(18, top_y, limit_width, card_h)
-        pygame.draw.rect(surface, (22, 30, 36), limit_box, border_radius=12)
-        pygame.draw.rect(surface, (73, 88, 94), limit_box, 1, border_radius=12)
-        self._text(surface, "ЛИМИТ", (limit_box.x + 12, limit_box.y + 12), self.MUTED, self.tiny)
+        speed_box = pygame.Rect(18, top_y, limit_width, card_h)
 
         direction = 1 if getattr(train, "direction", 1) >= 0 else -1
         current_limit = float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
@@ -194,10 +191,21 @@ class DriverCabUI:
         train.als.free_blocks_ahead = saved_blocks
         self._current_route_limit_kmh = current_limit
 
-        limit_text = pygame.font.SysFont("arial", 32, bold=True).render(
-            str(round(current_limit)), True, (230, 202, 104)
+        speed_kmh = abs(float(train.speed)) * 3.6
+        speed_text = pygame.font.SysFont("arial", 32, bold=True).render(
+            str(round(speed_kmh)), True, (245, 248, 249)
         )
-        surface.blit(limit_text, limit_text.get_rect(center=(limit_box.centerx, limit_box.y + 52)))
+        self._text(surface, "СКОРОСТЬ", (speed_box.x, speed_box.y + 12),
+                   self.MUTED, self.tiny)
+        surface.blit(speed_text, speed_text.get_rect(
+            center=(speed_box.centerx - 2, speed_box.y + 57)
+        ))
+        indicator_color = (214, 65, 62) if speed_kmh > current_limit + 0.1 else (65, 76, 81)
+        pygame.draw.rect(
+            surface, indicator_color,
+            pygame.Rect(speed_box.right - 12, speed_box.y + 12, 10, 10),
+            border_radius=2,
+        )
 
         box = pygame.Rect((width - map_width) // 2, top_y, map_width, card_h)
         pygame.draw.rect(surface, (22, 30, 36), box, border_radius=12)

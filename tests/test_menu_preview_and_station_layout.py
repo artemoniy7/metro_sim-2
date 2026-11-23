@@ -22,15 +22,17 @@ class MenuPreviewAndStationLayoutTests(unittest.TestCase):
                         (folder / profile.SPRITE_FILES[sprite_name]).is_file()
                     )
 
-    def test_yugo_vostochnaya_uses_island_platform_layout(self):
+    def test_yugo_vostochnaya_uses_side_platforms_and_centered_tracks(self):
         line_path = ROOT / "data" / "lines" / "line_15.json"
         line = json.loads(line_path.read_text(encoding="utf-8"))
         station = next(
             item for item in line["stations"]
             if item["name"] == "Юго-Восточная"
         )
-        self.assertEqual(station["platform_type"], "island")
-        self.assertEqual(station["platform_layout"], "island")
+        self.assertEqual(station["platform_type"], "side")
+        self.assertEqual(station["platform_layout"], "side")
+        self.assertAlmostEqual(station["track_center_offset_m"], 1.7)
+        self.assertEqual(station["track_center_transition_m"], 100)
 
 
 if __name__ == "__main__":

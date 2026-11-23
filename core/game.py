@@ -12,12 +12,14 @@ from systems.loader import load_json
 from systems.renderer import Renderer
 from systems.input import InputController
 from systems.audio import AudioSystem
+from systems.driver_cab_ui import DriverCabUI
 
 
 class Game:
     def __init__(self, line_file=None, train_file=None, start_position=0.0, end_position=None):
         self.renderer = Renderer()
         self.controls = InputController()
+        self.cab_ui = DriverCabUI()
         line_path = DATA_DIR / "lines" / (line_file or "line_15.json")
         self.line_data = load_json(line_path, default={})
         line_id = self.line_data.get("line_id", f"line_{self.line_data.get('line_number', 15)}")
@@ -144,6 +146,23 @@ class Game:
                 play_door_sound()
 
     def handle_event(self, event):
+        cab_ui = getattr(self, "cab_ui", None)
+        ui_action = cab_ui.handle_event(event, self.train) if cab_ui is not None else False
+        if isinstance(ui_action, dict):
+            if "door_side" in ui_action:
+                self.selected_door_side = ui_action["door_side"]
+            elif "open_doors" in ui_action:
+                self._open_selected_doors(ui_action["open_doors"])
+            elif ui_action.get("close_doors"):
+                if self.doors_open:
+                    self.doors_open = False
+                    self.train.doors_open = False
+                    play_door_sound = getattr(self.audio, "play_door_sound", None)
+                    if callable(play_door_sound):
+                        play_door_sound()
+            return
+        if ui_action:
+            return
         if event.type == pygame.KEYDOWN:
             if self.controls.matches(event, "select_left_door"):
                 self.selected_door_side = "left"
@@ -201,6 +220,10 @@ class Game:
 
     def update(self, dt):
         self.elapsed += dt
+        # Partial Game instances used by headless tests may not create the overlay.
+        cab_ui = getattr(self, "cab_ui", None)
+        if cab_ui is not None:
+            cab_ui.update(dt)
         self.controls.update(self.train, dt)
         # Do not retain a traction command while the doors are open.
         if self.doors_open and self.train.controller_notch > 0:
@@ -296,7 +319,11 @@ class Game:
                           + [bot.train for bot in self.opposing_trains]),
             station_simulation=self.station_simulation,
             track_network=self.track_network,
+            draw_hud=False,
         )
+        cab_ui = getattr(self, "cab_ui", None)
+        if cab_ui is not None:
+            cab_ui.render(surface, self.line, self.train, self)
         if not self.doors_open and self.renderer.door_open_amount <= 0.0:
             stop_door_ring = getattr(self.audio, "stop_door_ring", None)
             if callable(stop_door_ring):

@@ -25,7 +25,9 @@ class DriverCabUI:
         self.drawer = None
         self.buttons = {}
         self.dragging_lever = False
+        self.pressed_button = None
         self.door_flash = 0.0
+        self._next_restriction = None
         self.window_distance = 1800.0
         self._zone_cache = []
 
@@ -35,6 +37,8 @@ class DriverCabUI:
     def _button(self, surface, key, label, rect, active=False, color=None):
         self.buttons[key] = rect
         fill = color or (self.WHITE_BUTTON if active else (118, 137, 141))
+        if self.pressed_button == key:
+            fill = tuple(max(0, channel - 24) for channel in fill)
         pygame.draw.rect(surface, fill, rect, border_radius=7)
         pygame.draw.rect(surface, (225, 235, 235), rect, 1, border_radius=7)
         ink = (19, 31, 34) if active or color else (30, 40, 43)
@@ -44,6 +48,7 @@ class DriverCabUI:
     def handle_event(self, event, train):
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self.dragging_lever = False
+            self.pressed_button = None
             return True
         if event.type == pygame.MOUSEMOTION and self.dragging_lever and self.drawer == "motion":
             self._set_notch_from_y(event.pos[1], train)
@@ -51,6 +56,8 @@ class DriverCabUI:
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return False
 
+        self.pressed_button = next((key for key, rect in self.buttons.items()
+                                    if rect.collidepoint(event.pos)), None)
         if self.dragging_lever:
             self._set_notch_from_y(event.pos[1], train)
             return True
@@ -124,11 +131,15 @@ class DriverCabUI:
         train.als.free_blocks_ahead = saved_blocks
 
         px_per_m = (right - left) / self.window_distance
+        self._next_restriction = None
         previous_limit = samples[0][1] if samples else current_limit
         for distance, limit in samples[1:]:
             if limit < previous_limit - 0.1:
                 x = int(left + distance * px_per_m)
-                too_fast = current_speed > limit + 1.0
+                if self._next_restriction is None:
+                    self._next_restriction = (distance, limit)
+                required_distance = max(0.0, ((current_speed / 3.6) ** 2 - (limit / 3.6) ** 2) / (2 * 0.65)) + 60.0
+                too_fast = current_speed > limit + 1.0 and distance <= required_distance
                 color = (210, 65, 62) if too_fast else (225, 184, 63)
                 pygame.draw.rect(surface, color, (x - 3, track_y - 22, 7, 44))
                 pygame.draw.line(surface, (35, 42, 47), (x, track_y - 26), (x, track_y + 26), 1)
@@ -227,6 +238,12 @@ class DriverCabUI:
         radius = 112
         pygame.draw.circle(surface, (11, 15, 18), center, radius + 12)
         pygame.draw.circle(surface, (83, 94, 99), center, radius + 6, 2)
+        future = self._next_restriction
+        future_limit = future[1] if future else float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
+        future_distance = future[0] if future else float("inf")
+        speed_now = abs(float(train.speed)) * 3.6
+        stop_distance = max(0.0, ((speed_now / 3.6) ** 2 - (future_limit / 3.6) ** 2) / (2 * 0.65)) + 60.0
+        future_is_red = speed_now > future_limit + 1.0 and future_distance <= stop_distance
         for value in range(0, 91, 5):
             angle = math.radians(135 + value / 90 * 270)
             outer = (center[0] + math.cos(angle) * radius,
@@ -235,8 +252,8 @@ class DriverCabUI:
                      center[1] + math.sin(angle) * (radius - (13 if value % 10 == 0 else 7)))
             limit = float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
             color = (128, 140, 145)
-            if value > limit + 0.1:
-                color = (214, 65, 62) if abs(train.speed) * 3.6 > limit + 1 else (221, 177, 60)
+            if value > min(limit, future_limit) + 0.1:
+                color = (214, 65, 62) if future_is_red else (221, 177, 60)
             pygame.draw.line(surface, color, inner, outer, 3 if value % 10 == 0 else 2)
             if value % 10 == 0:
                 tx = center[0] + math.cos(angle) * (radius - 30)

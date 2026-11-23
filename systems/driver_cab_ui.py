@@ -140,8 +140,7 @@ class DriverCabUI:
                     self._next_restriction = (distance, limit)
                 required_distance = max(0.0, ((current_speed / 3.6) ** 2 - (limit / 3.6) ** 2) / (2 * 0.65)) + 60.0
                 too_fast = current_speed > limit + 1.0 and distance <= required_distance
-                color = (210, 65, 62) if too_fast else (225, 184, 63)
-                pygame.draw.rect(surface, color, (x - 3, track_y - 22, 7, 44))
+                pygame.draw.rect(surface, (132, 143, 148), (x - 3, track_y - 22, 7, 44))
                 pygame.draw.line(surface, (35, 42, 47), (x, track_y - 26), (x, track_y + 26), 1)
             previous_limit = limit
 

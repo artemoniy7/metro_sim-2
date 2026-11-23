@@ -468,7 +468,8 @@ class Renderer:
             self.main_lane_offset_m = 0.0
             self.lane_center_offset_m = 0.0
 
-        def rail_y_at(screen_x):
+        def station_shell_y_at(screen_x):
+            """Base rail height used to anchor station platforms and walls."""
             world_x = camera_x + screen_x / scale
             route_position = max(0.0, min(line.path.total_length, line.path.total_length - world_x))
             path_depth = line.path.point_at(route_position)[1]
@@ -499,6 +500,16 @@ class Renderer:
             return round(base_track_y + (depth_m - 10.0) * profile_scale
                          - self._track_offset(world_x) * scale * offset_weight
                          + (self.main_lane_offset_m - self.lane_center_offset_m) * scale)
+
+        def rail_y_at(screen_x):
+            """Track height including station-specific smooth alignment."""
+            world_x = camera_x + screen_x / scale
+            route_position = max(0.0, min(line.path.total_length, line.path.total_length - world_x))
+            station_shift = (
+                track_network.station_track_center_shift_m(route_position)
+                if track_network is not None else 0.0
+            )
+            return round(station_shell_y_at(screen_x) + station_shift * scale)
 
         depot_length = float(getattr(line, "depot_length", 0.0))
         ground_y = int(height * 0.58 - camera.panel_vertical_offset)
@@ -566,7 +577,9 @@ class Renderer:
             for sx in range(0, width, strip_width):
                 world_x = camera_x + sx / scale
                 route_position = line.path.total_length - world_x
-                track_y = rail_y_at(sx)
+                # Keep platform/wall artwork fixed while the rails
+                # smoothly enter and leave the centered station zone.
+                track_y = station_shell_y_at(sx)
                 station_index = next((
                     index for index, station in enumerate(line.stations)
                     if abs(route_position - float(station.get("position", 0)))
@@ -655,7 +668,7 @@ class Renderer:
                     pygame.draw.rect(surface, (112, 164, 194), (sx, 0, 4, ground_y))
                     pygame.draw.rect(surface, (79, 101, 70), (sx, ground_y, 4, max(1, track_y-ground_y)))
                 elif any(abs(route_position - float(station.get("position", 0))) <= float(station.get("length_m", 155)) / 2 for station in line.stations):
-                    track_y = rail_y_at(sx)
+                    track_y = station_shell_y_at(sx)
                     station_wall_top = self._station_wall_top(
                         track_y, tunnel_height, 0
                     )

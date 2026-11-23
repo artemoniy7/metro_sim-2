@@ -193,15 +193,15 @@ class DriverCabUI:
 
         speed_kmh = abs(float(train.speed)) * 3.6
         limit_exceeded = speed_kmh > current_limit + 0.1
-        limit_box_color = (190, 49, 47) if limit_exceeded else (22, 30, 36)
-        pygame.draw.rect(surface, limit_box_color, limit_box, border_radius=12)
+        speed_box_color = (190, 49, 47) if limit_exceeded else (35, 145, 75)
+        pygame.draw.rect(surface, speed_box_color, limit_box, border_radius=12)
         pygame.draw.rect(surface, (73, 88, 94), limit_box, 1, border_radius=12)
-        self._text(surface, "ЛИМИТ", (limit_box.x + 12, limit_box.y + 12),
+        self._text(surface, "СКОРОСТЬ", (limit_box.x + 5, limit_box.y + 12),
                    (255, 255, 255), self.tiny)
-        limit_text = pygame.font.SysFont("arial", 32, bold=True).render(
-            str(round(current_limit)), True, (255, 255, 255)
+        speed_text = pygame.font.SysFont("arial", 32, bold=True).render(
+            str(round(speed_kmh)), True, (255, 255, 255)
         )
-        surface.blit(limit_text, limit_text.get_rect(
+        surface.blit(speed_text, speed_text.get_rect(
             center=(limit_box.centerx, limit_box.y + 57)
         ))
 

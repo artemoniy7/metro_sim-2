@@ -71,6 +71,30 @@ class TrackNetworkTests(unittest.TestCase):
         self.assertEqual(outer, [0, 1])
         self.assertEqual(island, [1])
 
+    def test_station_tracks_smoothly_move_to_center_and_return(self):
+        line = FakeLine()
+        line.stations = [{
+            "name": "Юго-Восточная", "position": 5000, "length_m": 160,
+            "platform_layout": "side", "track_center_offset_m": 1.7,
+            "track_center_transition_m": 100,
+        }]
+        network = TrackNetwork(line, {})
+        self.assertAlmostEqual(network.station_track_center_shift_m(5000), 1.7)
+        self.assertAlmostEqual(network.station_track_center_shift_m(4920), 1.7)
+        self.assertGreater(network.station_track_center_shift_m(4860), 0.0)
+        self.assertLess(network.station_track_center_shift_m(4860), 1.7)
+        self.assertAlmostEqual(network.station_track_center_shift_m(4800), 0.0)
+        self.assertAlmostEqual(network.station_track_center_shift_m(5200), 0.0)
+
+    def test_center_shift_is_only_used_for_side_platform_stations(self):
+        line = FakeLine()
+        line.stations = [{
+            "position": 5000, "length_m": 160,
+            "platform_layout": "island", "track_center_offset_m": 1.7,
+        }]
+        network = TrackNetwork(line, {})
+        self.assertAlmostEqual(network.station_track_center_shift_m(5000), 0.0)
+
     def test_user_request_cannot_change_track(self):
         train = FakeTrain()
         self.assertFalse(self.network.request_lane_change(train, -1, [train]))

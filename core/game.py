@@ -220,6 +220,7 @@ class Game:
 
     def update(self, dt):
         self.elapsed += dt
+        # Partial Game instances used by headless tests may not create the overlay.
         cab_ui = getattr(self, "cab_ui", None)
         if cab_ui is not None:
             cab_ui.update(dt)

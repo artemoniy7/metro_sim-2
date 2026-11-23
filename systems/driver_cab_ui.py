@@ -283,15 +283,28 @@ class DriverCabUI:
     def _build_announcement_items(self, line, game):
         items = []
         sounds = getattr(game.audio, "station_announcement_sounds", {})
-        for index, station in enumerate(line.stations, start=1):
+        stations = line.stations
+        for index, station in enumerate(stations, start=1):
             station_name = str(station.get("name", f"Станция {index}"))
-            available = sounds.get(index, {})
-            if "current" in available:
-                items.append({"station_number": index, "kind": "current",
-                              "label": station_name})
-            if "next" in available:
-                items.append({"station_number": index, "kind": "next",
-                              "label": f"{station_name} отпр."})
+            if "current" in sounds.get(index, {}):
+                items.append({
+                    "station_number": index,
+                    "display_station_number": index,
+                    "kind": "current",
+                    "label": station_name,
+                })
+
+            # A departure from station N announces station N+1, so the
+            # playback clip belongs to the next station, not the one shown.
+            next_station_number = index + 1
+            if (next_station_number <= len(stations)
+                    and "next" in sounds.get(next_station_number, {})):
+                items.append({
+                    "station_number": next_station_number,
+                    "display_station_number": index,
+                    "kind": "next",
+                    "label": f"{station_name} — отпр.",
+                })
         self.announcement_items = items
         if items:
             self.announcement_index = max(0, min(self.announcement_index, len(items) - 1))
@@ -320,7 +333,8 @@ class DriverCabUI:
             color = (49, 112, 116) if selected else (31, 43, 50)
             pygame.draw.rect(surface, color, row_rect, border_radius=4)
             self.buttons[f"announcement_item_{index}"] = row_rect
-            label = f'{item["station_number"]:02d}. {item["label"]}'
+            display_number = item.get("display_station_number", item["station_number"])
+            label = f'{display_number:02d}. {item["label"]}'
             self._text(surface, label, (row_rect.x + 10, row_rect.y + 6),
                        self.TEXT if selected else self.MUTED, self.small)
         if not self.announcement_items:

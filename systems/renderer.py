@@ -502,8 +502,7 @@ class Renderer:
             # collapse both tracks onto the midpoint.
             return round(base_track_y + (depth_m - 10.0) * profile_scale
                          - self._track_offset(world_x) * scale * offset_weight
-                         + (self.main_lane_offset_m - self.lane_center_offset_m) * scale)
-
+)
         def lane_y_at(screen_x, lane_index):
             """Track height after this individual lane converges to the station centre."""
             if track_network is None:

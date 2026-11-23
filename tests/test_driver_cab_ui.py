@@ -42,6 +42,29 @@ class DriverCabUITests(unittest.TestCase):
         self.assertEqual(action, {"play_announcement": first})
         self.assertEqual(ui.announcement_index, 1)
 
+    def test_next_clip_label_uses_previous_station_as_departure(self):
+        ui = DriverCabUI()
+        line = SimpleNamespace(stations=[
+            {"name": "Некрасовка"},
+            {"name": "Лухмановская"},
+            {"name": "Улица Дмитриевского"},
+            {"name": "Косино"},
+        ])
+        audio = SimpleNamespace(station_announcement_sounds={
+            3: {"next": object()},
+        })
+        game = SimpleNamespace(audio=audio)
+
+        ui._build_announcement_items(line, game)
+
+        self.assertEqual(len(ui.announcement_items), 1)
+        self.assertEqual(ui.announcement_items[0]["station_number"], 3)
+        self.assertEqual(ui.announcement_items[0]["kind"], "next")
+        self.assertEqual(
+            ui.announcement_items[0]["label"],
+            "Лухмановская — отпр.",
+        )
+
     def test_route_drawer_tabs_toggle_open_and_closed(self):
         ui = DriverCabUI()
         ui.buttons["tab_motion"] = pygame.Rect(10, 10, 48, 48)

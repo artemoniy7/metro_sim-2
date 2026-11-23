@@ -141,9 +141,11 @@
       "distance_from_previous_m": 2122.34,
       "distance_status": "verified_station_chainage_delta",
       "position_status": "verified_station_chainage",
-      "platform_type": "island",
-      "platform_layout": "island",
-      "platform_layout_note": "Островная платформа между двумя главными путями.",
+      "platform_type": "side",
+      "platform_layout": "side",
+      "track_center_offset_m": 1.7,
+      "track_center_transition_m": 100,
+      "platform_layout_note": "Две боковые платформы; оба главных пути плавно смещаются в центральную зону станции и возвращаются к обычному межстанционному положению.",
       "platform_type_source": "https://www.nashtransport.ru/russia/moscow/metro/lines/line_15/yugo-vostochnaya/"
     },
     {

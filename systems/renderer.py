@@ -497,6 +497,9 @@ class Renderer:
                     break
 
             profile_scale = scale * (1.35 / 28.0)
+            # Shift the whole pair so its midpoint follows the station axis.
+            # lane_y_at() applies each lane's own offset afterwards; do not
+            # collapse both tracks onto the midpoint.
             return round(base_track_y + (depth_m - 10.0) * profile_scale
                          - self._track_offset(world_x) * scale * offset_weight
                          + (self.main_lane_offset_m - self.lane_center_offset_m) * scale)

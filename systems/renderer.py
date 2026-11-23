@@ -501,10 +501,10 @@ class Renderer:
             # lane_y_at() applies each lane's own offset afterwards; do not
             # collapse both tracks onto the midpoint.
             return round(base_track_y + (depth_m - 10.0) * profile_scale
-                         - self._track_offset(world_x) * scale * offset_weight
-)
+                         - self._track_offset(world_x) * scale * offset_weight)
+
         def lane_y_at(screen_x, lane_index):
-            """Track height after this individual lane converges to the station centre."""
+            """Track height after the station-centre shift is applied to this lane."""
             if track_network is None:
                 return station_shell_y_at(screen_x)
             world_x = camera_x + screen_x / scale

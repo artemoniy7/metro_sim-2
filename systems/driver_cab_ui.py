@@ -380,29 +380,52 @@ class DriverCabUI:
 
     def _draw_speedometer(self, surface, train, line):
         width, _ = surface.get_size()
-        panel = self._drawer_rect(surface, height=300, width=390)
+        panel = self._drawer_rect(surface, height=318, width=520)
         panel.x = width - panel.width - 18
         pygame.draw.rect(surface, (5, 8, 11), panel, border_radius=14)
         pygame.draw.rect(surface, self.PANEL_EDGE, panel, 1, border_radius=14)
         self._text(surface, "СКОРОСТЕМЕР", (panel.x + 18, panel.y + 12), self.TEXT, self.title)
-        center, radius = (panel.centerx, panel.y + 174), 112
+
+        # Three-position reverser: forward / neutral / reverse.
+        selector_rect = pygame.Rect(panel.x + 28, panel.y + 78, 222, 184)
+        self.buttons["reverser_selector"] = selector_rect
+        pivot = (panel.x + 96, panel.y + 174)
+        selector = max(-1, min(1, int(getattr(train, "reverser_position", 0) or 0)))
+        detents = {
+            1: (pivot[0] + 43, pivot[1] - 42),
+            0: (pivot[0] + 49, pivot[1]),
+            -1: (pivot[0] + 43, pivot[1] + 42),
+        }
+        endpoint = detents[selector]
+        pygame.draw.line(surface, (72, 86, 92), detents[1], detents[-1], 8)
+        for point in detents.values():
+            pygame.draw.circle(surface, (183, 195, 198), point, 5)
+        pygame.draw.line(surface, (205, 215, 217), pivot, endpoint, 9)
+        pygame.draw.circle(surface, (48, 62, 68), pivot, 15)
+        pygame.draw.circle(surface, (210, 221, 222), pivot, 9)
+        pygame.draw.circle(surface, (239, 245, 245), endpoint, 10)
+        selector_label = {1: "ВПЕРЁД", 0: "НЕЙТРАЛЬ", -1: "НАЗАД"}[selector]
+        self._text(surface, selector_label, (panel.x + 154, panel.y + 164),
+                   (230, 202, 104), self.font)
+        self._text(surface, "РЕВЕРСОР", (panel.x + 46, panel.y + 82), self.MUTED, self.tiny)
+
+        # The dial is kept to the right so the reverser remains clearly separate.
+        center, radius = (panel.x + 388, panel.y + 174), 106
         pygame.draw.circle(surface, (11, 15, 18), center, radius + 12)
         pygame.draw.circle(surface, (83, 94, 99), center, radius + 6, 2)
         future = self._next_restriction
-        future_limit = future[1] if future else float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
-        future_distance = future[0] if future else float("inf")
-        speed_now = abs(float(train.speed)) * 3.6
-        stop_distance = max(0.0, ((speed_now / 3.6) ** 2 - (future_limit / 3.6) ** 2) / (2 * 0.65)) + 60.0
-        future_is_red = speed_now > future_limit + 1.0 and future_distance <= stop_distance
+        current_limit = float(getattr(
+            self, "_current_route_limit_kmh",
+            float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
+        ))
+        future_limit = future[1] if future else current_limit
+        future_limit = min(current_limit, float(future_limit))
         for value in range(0, 91, 5):
             angle = math.radians(135 + value / 90 * 270)
             outer = (center[0] + math.cos(angle) * radius, center[1] + math.sin(angle) * radius)
             inner = (center[0] + math.cos(angle) * (radius - (13 if value % 10 == 0 else 7)),
                      center[1] + math.sin(angle) * (radius - (13 if value % 10 == 0 else 7)))
-            limit = float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
-            color = (128, 140, 145)
-            if value > min(limit, future_limit) + 0.1:
-                color = (214, 65, 62) if future_is_red else (221, 177, 60)
+            color = self._speed_band_color(value, current_limit, future_limit)
             pygame.draw.line(surface, color, inner, outer, 3 if value % 10 == 0 else 2)
             if value % 10 == 0:
                 tx = center[0] + math.cos(angle) * (radius - 30)
@@ -417,9 +440,11 @@ class DriverCabUI:
         speed_text = self.title.render(f"{speed:.0f}", True, self.TEXT)
         surface.blit(speed_text, speed_text.get_rect(center=(center[0], center[1] + 35)))
         self._text(surface, "км/ч", (center[0] - 19, center[1] + 56), self.MUTED, self.tiny)
-        limit = float(getattr(train, "current_speed_limit_mps", train.max_speed)) * 3.6
-        self._text(surface, f"РАЗРЕШЕНО: {limit:.0f} км/ч",
+        self._text(surface, f"РАЗРЕШЕНО: {current_limit:.0f} км/ч",
                    (panel.x + 22, panel.bottom - 42), (226, 190, 88), self.font)
+        if future is not None and future_limit < current_limit - 0.1:
+            self._text(surface, f"СЛЕД. БЛОК: {future_limit:.0f} км/ч",
+                       (panel.x + 250, panel.bottom - 42), self.YELLOW, self.small)
 
     def render(self, surface, line, train, game):
         self.buttons.clear()

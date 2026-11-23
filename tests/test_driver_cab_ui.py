@@ -30,7 +30,7 @@ class DriverCabUITests(unittest.TestCase):
         ui.handle_event(event, train)
         self.assertEqual(ui.drawer, "motion")
 
-        ui.buttons["tab_motion"] = pygame.Rect(10, 10, 100, 40)
+        ui.buttons["tab_motion"] = pygame.Rect(10, 10, 48, 48)
         ui.handle_event(event, train)
         self.assertIsNone(ui.drawer)
 

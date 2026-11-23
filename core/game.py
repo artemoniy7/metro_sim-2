@@ -217,10 +217,8 @@ class Game:
         self.line.traffic_trains = [self.train] + [bot.train for bot in self.bot_trains]
         self.train.update(dt, self.line)
         self.track_network.update_train(self.train)
-        if self.train.position >= self.end_position:
-            self.train.position = self.end_position
-            self.train.speed = 0.0
-            self.train.controller_notch = 0
+        # The player is not stopped at a menu-selected destination.
+        # Train.update() handles the physical line boundaries at the termini.
         for opposing in list(self.opposing_trains):
             opposing.update(dt, self.line)
             if opposing.train.position <= 0.5:

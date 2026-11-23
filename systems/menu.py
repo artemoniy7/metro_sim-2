@@ -58,9 +58,21 @@ class MainMenu:
         self.button_font = self._font(font_dir / "IBMPlexSans-Medium.ttf", 18)
         self.small = self._font(font_dir / "IBMPlexSans-Regular.ttf", 14)
         self.sprites = {}
+        self.preview_door_profiles = {
+            "81-760": {
+                "loco_openings": ((373, 81, 553, 322), (939, 81, 1119, 322),
+                                  (1433, 81, 1613, 322), (1897, 81, 2077, 322)),
+                "door_sizes": ((91, 225), (90, 225)),
+            },
+            "81-777": {
+                "loco_openings": ((362, 80, 560, 304), (832, 80, 1030, 304),
+                                  (1314, 80, 1512, 304), (1785, 80, 1983, 304)),
+                "door_sizes": ((88, 225), (87, 225)),
+            },
+        }
         for model in ("81-760", "81-777"):
             folder = ASSETS / "trains" / model
-            for kind in ("loco", "car"):
+            for kind in ("loco", "car", "door_left", "door_right"):
                 p = folder / f"{model}-{kind}.png"
                 if p.is_file():
                     try:
@@ -325,8 +337,36 @@ class MainMenu:
                 pygame.draw.circle(surface, (15, 20, 27), (wx, body.bottom+2), 7)
             return
         scale = min(width / image.get_width(), height / image.get_height())
-        scaled = pygame.transform.smoothscale(image, (int(image.get_width()*scale), int(image.get_height()*scale)))
-        surface.blit(scaled, (x, y + height - scaled.get_height() + 10))
+        scaled_width = max(1, int(image.get_width() * scale))
+        scaled_height = max(1, int(image.get_height() * scale))
+        scaled = pygame.transform.smoothscale(image, (scaled_width, scaled_height))
+        draw_x = x
+        draw_y = y + height - scaled_height + 10
+        surface.blit(scaled, (draw_x, draw_y))
+
+        # Door leaves are separate transparent sprites. Overlay them on the
+        # matching openings so the selection card shows the complete train.
+        profile = self.preview_door_profiles.get(model)
+        left_door = self.sprites.get((model, "door_left"))
+        right_door = self.sprites.get((model, "door_right"))
+        if profile and left_door and right_door:
+            sx = scaled_width / image.get_width()
+            sy = scaled_height / image.get_height()
+            left_source_size, right_source_size = profile["door_sizes"]
+            left_size = (max(1, round(left_source_size[0] * sx)),
+                         max(1, round(left_source_size[1] * sy)))
+            right_size = (max(1, round(right_source_size[0] * sx)),
+                          max(1, round(right_source_size[1] * sy)))
+            left_scaled = pygame.transform.smoothscale(left_door, left_size)
+            right_scaled = pygame.transform.smoothscale(right_door, right_size)
+            for x1, y1, x2, _ in profile["loco_openings"]:
+                surface.blit(left_scaled, (
+                    draw_x + round(x1 * sx), draw_y + round(y1 * sy)
+                ))
+                surface.blit(right_scaled, (
+                    draw_x + round((x2 - right_source_size[0]) * sx),
+                    draw_y + round(y1 * sy),
+                ))
 
     def _render_settings(self, surface):
         w, h = surface.get_size()

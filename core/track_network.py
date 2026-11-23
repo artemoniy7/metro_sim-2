@@ -16,32 +16,9 @@ class TrackNetwork:
         self.main_lane = max(0, min(len(self.lanes) - 1, self.main_lane))
         self.switch_length = max(40.0, float(data.get("switch_length_m", 100.0)))
         self.switch_window = max(self.switch_length, float(data.get("switch_window_m", 120.0)))
-        spacing = max(300.0, float(data.get("switch_spacing_m", 1500.0)))
-        first = max(100.0, float(data.get("first_switch_m", 900.0)))
-        positions = list(self._positions(first, spacing, line.path.total_length))
-        # Add paired crossovers outside selected station platforms. This makes
-        # the route changes visible near stations without putting points under platforms.
-        if data.get("station_switches", False):
-            interval = max(1, int(data.get("station_switch_interval", 4)))
-            approach = max(self.switch_length, float(
-                data.get("switch_offset_from_station_m", 260.0)
-            ))
-            for station_index, station in enumerate(getattr(line, "stations", [])):
-                if station_index % interval != 0:
-                    continue
-                # Skip the entire crossover pair at configured stations.
-                if station.get("name") in set(data.get("station_switches_skip", [])):
-                    continue
-                center = float(station.get("position", 0.0))
-                positions.extend((center - approach, center + approach))
-        positions = sorted({
-            round(position, 2) for position in positions
-            if self.switch_length / 2 <= position <= line.path.total_length - self.switch_length / 2
-        })
-        self.switches = [
-            {"id": f"SW-{index:02d}", "position": position}
-            for index, position in enumerate(positions, start=1)
-        ]
+        # Do not synthesize crossovers along the route or beside stations.
+        # Only draw switches explicitly supplied by a track-layout file.
+        self.switches = [dict(switch) for switch in data.get("switches", [])]
         # Optional station/dead-end geometry is kept in a separate file so the
         # line-wide parallel-track configuration remains unchanged.
         local_layout = local_layout or {}
@@ -190,6 +167,15 @@ class TrackNetwork:
         """Lock the chosen route at entry and release its zone after the tail clears exit."""
         leading, trailing = self._train_edges(train)
         travel = 1 if int(getattr(train, "direction", 1)) >= 0 else -1
+        if not self.local_switches:
+            # A legacy or stale transition must not keep shifting a train when
+            # this route has no explicitly configured junctions.
+            train.track_change = None
+            train._junction_active_zones = []
+            train._junction_route_state = None
+            train._junction_previous_edges = (leading, trailing)
+            train._junction_previous_direction = travel
+            return
         previous = getattr(train, "_junction_previous_edges", (None, None))
         prev_lead, prev_tail = previous
         previous_direction = getattr(train, "_junction_previous_direction", travel)

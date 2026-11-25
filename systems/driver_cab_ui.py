@@ -309,9 +309,17 @@ class DriverCabUI:
         status = "ДВЕРИ ОТКРЫТЫ" if game.doors_open else "ДВЕРИ ЗАКРЫТЫ"
         self._text(surface, status, (panel.x + 22, panel.bottom - 30),
                    (117, 222, 171) if game.doors_open else self.MUTED, self.font)
-        if abs(train.speed) >= 0.05:
-            self._text(surface, "Открытие доступно только при остановке поезда",
-                       (panel.x + 22, panel.bottom - 10), (225, 187, 105), self.tiny)
+        if not game.doors_open:
+            if abs(train.speed) >= 0.05:
+                reason = "Остановите поезд полностью, чтобы открыть двери"
+            elif not train.pneumatics.doors_available:
+                pressure = float(getattr(train.pneumatics, "pressure_door", 0.0))
+                unit = getattr(train, "PRESSURE_DISPLAY_UNIT", "усл. ед.")
+                reason = f"Недостаточно давления в дверной магистрали: {pressure:.2f} {unit}"
+            else:
+                reason = "Нажмите «ОТКРЫТЬ» слева или справа"
+            self._text(surface, reason, (panel.x + 22, panel.bottom - 10),
+                       (225, 187, 105), self.tiny)
 
     def _build_announcement_items(self, line, game):
         items = []

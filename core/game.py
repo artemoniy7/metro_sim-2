@@ -146,16 +146,23 @@ class Game:
         return True
 
     def _open_selected_doors(self, side):
-        if self.selected_door_side != side:
-            return
-        if abs(self.train.speed) >= 0.05 or not self.train.pneumatics.doors_available:
-            return
+        # The explicit open-left/open-right command also selects that side.
+        # Requiring a separate side-selection action made keyboard and mouse
+        # controls appear intermittent when the selected side was stale.
+        if side not in ("left", "right"):
+            return False
+        self.selected_door_side = side
+        if abs(self.train.speed) >= 0.05:
+            return False
+        if not self.train.pneumatics.doors_available:
+            return False
         if not self.doors_open:
             self.doors_open = True
             self.train.doors_open = True
             play_door_sound = getattr(self.audio, "play_door_sound", None)
             if callable(play_door_sound):
                 play_door_sound()
+        return True
 
     def _reset_emergency_brakes(self):
         """Reset a latched overspeed emergency after the train has stopped."""
